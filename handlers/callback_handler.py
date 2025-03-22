@@ -13,35 +13,27 @@ async def handle_buy_credits(update: Update, context: ContextTypes.DEFAULT_TYPE)
     query = update.callback_query
     await query.answer()
     
-    # Pokaż podstawowe menu zakupu
-    message = "🛒 *Zakup kredytów*\n\nWybierz pakiet kredytów:"
-    
-    # Pobierz pakiety
-    from config import CREDIT_PACKAGES
-    
-    # Stwórz przyciski dla pakietów
-    keyboard = []
-    for pkg in CREDIT_PACKAGES:
-        keyboard.append([
-            InlineKeyboardButton(
-                f"{pkg['name']} - {pkg['credits']} kredytów ({pkg['price']} PLN)", 
-                callback_data=f"buy_package_{pkg['id']}"
-            )
-        ])
-    
-    # Dodaj przycisk powrotu
-    keyboard.append([
-        InlineKeyboardButton("⬅️ Powrót", callback_data="menu_back_main")
-    ])
-    
     try:
-        await query.edit_message_text(
-            text=message,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode=ParseMode.MARKDOWN
-        )
+        # Importuj funkcję buy_command
+        from handlers.credit_handler import buy_command
+        
+        # Utwórz sztuczny obiekt update
+        fake_update = type('obj', (object,), {
+            'effective_user': query.from_user,
+            'message': query.message,
+            'effective_chat': query.message.chat
+        })
+        
+        # Usuń oryginalną wiadomość z menu, aby nie powodować zamieszania
+        await query.message.delete()
+        
+        # Wywołaj nowy interfejs zakupów (/buy)
+        await buy_command(fake_update, context)
+        
     except Exception as e:
-        print(f"Error updating message: {e}")
+        print(f"Błąd przy przekierowaniu do zakupu kredytów: {e}")
+        import traceback
+        traceback.print_exc()
 
 async def handle_unknown_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Obsługuje wszystkie nieznane callbacki"""
@@ -141,6 +133,20 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             import traceback
             traceback.print_exc()
     
+    elif query.data == "Kup":
+        try:
+            # Przekieruj do zakupu kredytów
+            from handlers.credit_handler import buy_command
+            
+            # Utwórz sztuczny obiekt update
+            fake_update = type('obj', (object,), {'effective_user': query.from_user, 'message': query.message})
+            await buy_command(fake_update, context)
+            return True
+        except Exception as e:
+            print(f"Błąd przy przekierowaniu do zakupu kredytów: {e}")
+            import traceback
+            traceback.print_exc()
+
     # Obsługa nowych callbacków dla zdjęć
     elif query.data == "analyze_photo" or query.data == "translate_photo":
         # Pobierz ID zdjęcia z kontekstu

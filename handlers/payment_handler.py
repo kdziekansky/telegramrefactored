@@ -127,6 +127,26 @@ async def handle_payment_callback(update: Update, context: ContextTypes.DEFAULT_
     
     await query.answer()
     
+    # Obsługa starego formatu buy_package bez metody płatności
+    if query.data.startswith("buy_package_") and "_" in query.data and len(query.data.split("_")) == 3:
+        # Przekieruj do nowego interfejsu płatności
+        await query.answer("Przekierowuję do nowego interfejsu płatności...")
+        
+        # Stwórz sztuczny obiekt update
+        fake_update = type('obj', (object,), {
+            'effective_user': query.from_user,
+            'message': query.message,
+            'effective_chat': query.message.chat
+        })
+        
+        # Usuń oryginalną wiadomość
+        await query.message.delete()
+        
+        # Wywołaj nowy interfejs zakupów
+        from handlers.credit_handler import buy_command
+        await buy_command(fake_update, context)
+        return True
+
     # Obsługa powrotu do menu głównego
     if query.data == "menu_back_main":
         from handlers.menu_handler import handle_back_to_main

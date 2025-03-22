@@ -53,11 +53,14 @@ async def show_modes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
-async def handle_mode_selection(update: Update, context: ContextTypes.DEFAULT_TYPE, mode_id):
+async def handle_mode_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Obsługuje wybór trybu czatu z ulepszoną wizualizacją"""
     query = update.callback_query
     user_id = query.from_user.id
     language = get_user_language(context, user_id)
+    
+    # Wyodrębnij mode_id z callback_data
+    mode_id = query.data.replace("mode_", "")
     
     print(f"Obsługiwanie wyboru trybu: {mode_id}")
     
@@ -143,6 +146,8 @@ async def handle_mode_selection(update: Update, context: ContextTypes.DEFAULT_TY
                 reply_markup=reply_markup
             )
             print(f"Zaktualizowano text dla trybu {mode_id}")
+            
+        await query.answer(get_text("mode_selected", language, default="Tryb wybrany pomyślnie"))
     except Exception as e:
         print(f"Błąd przy edycji wiadomości dla trybu {mode_id}: {e}")
         import traceback

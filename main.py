@@ -10,6 +10,8 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from config import TELEGRAM_TOKEN
+from telegram import Update
+from telegram.ext import ContextTypes
 
 # Napraw problem z proxy w httpx
 from telegram.request import HTTPXRequest
@@ -56,6 +58,12 @@ from handlers.file_handler import handle_document, handle_photo
 # Inicjalizacja aplikacji
 application = Application.builder().token(TELEGRAM_TOKEN).build()
 
+
+# Wrapper function for mode selection
+async def handle_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Przekazuje wywołanie bezpośrednio do funkcji handle_mode_selection"""
+    await handle_mode_selection(update, context)
+
 # Rejestracja handlerów komend
 application.add_handler(CommandHandler("start", start_command))
 application.add_handler(CommandHandler("help", help_command))
@@ -89,11 +97,12 @@ application.add_handler(CommandHandler("gencode", admin_generate_code))
 application.add_handler(CommandHandler("userinfo", get_user_info))
 
 # Rejestracja handlerów callbacków
+application.add_handler(CallbackQueryHandler(handle_buy_credits, pattern="^Kup$"))
 application.add_handler(CallbackQueryHandler(handle_buy_credits, pattern="^menu_credits_buy$"))
 application.add_handler(CallbackQueryHandler(handle_language_selection, pattern="^start_lang_"))
 application.add_handler(CallbackQueryHandler(handle_menu_callback, pattern="^menu_"))
 application.add_handler(CallbackQueryHandler(handle_theme_callback, pattern="^(theme_|new_theme|no_theme)"))
-application.add_handler(CallbackQueryHandler(handle_mode_selection, pattern="^mode_"))
+application.add_handler(CallbackQueryHandler(handle_mode_callback, pattern="^mode_"))
 application.add_handler(CallbackQueryHandler(handle_credit_callback, pattern="^(credits_|menu_credits_|buy_)"))
 application.add_handler(CallbackQueryHandler(handle_payment_callback, pattern="^(payment_|buy_package_)"))
 application.add_handler(CallbackQueryHandler(handle_onboarding_callback, pattern="^onboarding_"))
@@ -105,6 +114,9 @@ application.add_handler(CallbackQueryHandler(handle_callback_query))
 
 # Handler wiadomości tekstowych
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
+
+application.add_handler(CallbackQueryHandler(handle_mode_selection, pattern="^mode_"))
+
 
 # Handler dokumentów i zdjęć
 application.add_handler(MessageHandler(filters.Document.ALL, handle_document))
