@@ -21,11 +21,9 @@ def generate_credit_usage_chart(user_id, days=30):
         if not transactions:
             logger.warning(f"Brak transakcji dla użytkownika {user_id} w okresie {days} dni")
             # Generujemy prosty wykres informacyjny zamiast zwracać None
-            plt.figure(figsize=(10, 6))
-            plt.text(0.5, 0.5, 'Brak danych transakcji', 
-                    horizontalalignment='center', verticalalignment='center', 
-                    fontsize=20, color='gray', transform=plt.gca().transAxes)
-            plt.gca().set_axis_off()
+            plt.text(0.5, 0.5, get_text("no_transaction_data", language), 
+            horizontalalignment='center', verticalalignment='center', 
+            fontsize=20, color='gray', transform=plt.gca().transAxes)
             
             # Zapisz wykres do bufora
             buf = io.BytesIO()
@@ -67,7 +65,7 @@ def generate_credit_usage_chart(user_id, days=30):
             logger.warning(f"Nie udało się przetworzyć żadnej transakcji")
             # Generujemy prosty wykres informacyjny
             plt.figure(figsize=(10, 6))
-            plt.text(0.5, 0.5, 'Błąd przetwarzania transakcji', 
+            plt.text(0.5, 0.5, get_text("transaction_processing_error", language), 
                     horizontalalignment='center', verticalalignment='center', 
                     fontsize=20, color='gray', transform=plt.gca().transAxes)
             plt.gca().set_axis_off()
@@ -84,9 +82,9 @@ def generate_credit_usage_chart(user_id, days=30):
         # Wykres salda
         plt.subplot(2, 1, 1)
         plt.plot(dates, balances, 'b-', label='Saldo kredytów')
-        plt.xlabel('Data')
-        plt.ylabel('Kredyty')
-        plt.title('Historia salda kredytów')
+        plt.xlabel(get_text("date", language))
+        plt.ylabel(get_text("credits", language))
+        plt.title(get_text("credit_balance_history", language))
         plt.grid(True, linestyle='--', alpha=0.7)
         plt.gca().xaxis.set_major_formatter(DateFormatter('%d-%m-%Y'))
         plt.gcf().autofmt_xdate()
@@ -110,9 +108,9 @@ def generate_credit_usage_chart(user_id, days=30):
         plt.gcf().autofmt_xdate()
         
         # Etykiety i legenda
-        plt.xlabel('Data')
-        plt.ylabel('Kredyty')
-        plt.title('Szczegóły transakcji')
+        plt.xlabel(get_text("date", language))
+        plt.ylabel(get_text("credits", language))
+        plt.title(get_text("transaction_details", language))
         plt.grid(True, linestyle='--', alpha=0.7)
         plt.legend()
         
@@ -131,7 +129,7 @@ def generate_credit_usage_chart(user_id, days=30):
         logger.error(f"Błąd przy generowaniu wykresu: {e}", exc_info=True)
         # Generujemy wykres błędu
         plt.figure(figsize=(10, 6))
-        plt.text(0.5, 0.5, f'Błąd generowania wykresu: {str(e)}', 
+        plt.text(0.5, 0.5, get_text("chart_generation_error", language, error=str(e)), 
                 horizontalalignment='center', verticalalignment='center', 
                 fontsize=12, color='red', transform=plt.gca().transAxes)
         plt.gca().set_axis_off()
@@ -164,23 +162,25 @@ def get_credit_usage_breakdown(user_id, days=30):
                 amount = trans.get('amount', 0)
                 
                 if any(term in description for term in ['wiadomość', 'message', 'chat', 'gpt']):
-                    if "Wiadomości" not in breakdown:
-                        breakdown["Wiadomości"] = 0
-                    breakdown["Wiadomości"] += amount
+                    if messages_category not in breakdown:
+                        breakdown[messages_category] = 0
+                    breakdown[messages_category] += amount
                 elif any(term in description for term in ['obraz', 'dall-e', 'image', 'dall']):
-                    if "Obrazy" not in breakdown:
-                        breakdown["Obrazy"] = 0
-                    breakdown["Obrazy"] += amount
+                    if images_category not in breakdown:
+                        breakdown[images_category] = 0
+                    breakdown[images_category] += amount
                 elif any(term in description for term in ['dokument', 'document', 'pdf', 'plik']):
-                    if "Dokumenty" not in breakdown:
-                        breakdown["Dokumenty"] = 0
-                    breakdown["Dokumenty"] += amount
+                    if documents_category not in breakdown:
+                        breakdown[documents_category] = 0
+                    breakdown[documents_category] += amount
                 elif any(term in description for term in ['zdjęci', 'zdjęc', 'photo', 'foto']):
-                    if "Zdjęcia" not in breakdown:
-                        breakdown["Zdjęcia"] = 0
-                    breakdown["Zdjęcia"] += amount
+                    if photos_category not in breakdown:
+                        breakdown[photos_category] = 0
+                    breakdown[photos_category] += amount
                 else:
-                    breakdown["Inne"] += amount
+                    if other_category not in breakdown:
+                        breakdown[other_category] = 0
+                    breakdown[other_category] += amount
         
         return breakdown
     except Exception as e:
@@ -197,9 +197,10 @@ def generate_usage_breakdown_chart(user_id, days=30):
             logger.warning(f"Brak danych rozkładu dla użytkownika {user_id}")
             # Generujemy prosty wykres informacyjny zamiast zwracać None
             plt.figure(figsize=(8, 6))
-            plt.text(0.5, 0.5, 'Brak danych do analizy', 
+            plt.text(0.5, 0.5, get_text("no_analysis_data", language), 
                     horizontalalignment='center', verticalalignment='center', 
                     fontsize=20, color='gray', transform=plt.gca().transAxes)
+
             plt.gca().set_axis_off()
             
             # Zapisz wykres do bufora
@@ -220,9 +221,9 @@ def generate_usage_breakdown_chart(user_id, days=30):
         if sum(sizes) > 0:  # Sprawdź, czy są dane do wykreślenia
             plt.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90, shadow=True)
             plt.axis('equal')
-            plt.title(f'Rozkład zużycia kredytów w ostatnich {days} dniach')
+            plt.title(get_text("credit_usage_breakdown_days", language, days=days))
         else:
-            plt.text(0.5, 0.5, 'Brak transakcji zużycia kredytów', 
+            plt.text(0.5, 0.5, get_text("no_credit_usage_transactions", language), 
                     horizontalalignment='center', verticalalignment='center', 
                     fontsize=16, color='gray', transform=plt.gca().transAxes)
             plt.gca().set_axis_off()
@@ -239,7 +240,7 @@ def generate_usage_breakdown_chart(user_id, days=30):
         logger.error(f"Błąd przy generowaniu wykresu rozkładu: {e}", exc_info=True)
         # Generujemy wykres błędu
         plt.figure(figsize=(8, 6))
-        plt.text(0.5, 0.5, f'Błąd generowania wykresu: {str(e)}', 
+        plt.text(0.5, 0.5, get_text("chart_generation_error", language, error=str(e)), 
                 horizontalalignment='center', verticalalignment='center', 
                 fontsize=12, color='red', transform=plt.gca().transAxes)
         plt.gca().set_axis_off()

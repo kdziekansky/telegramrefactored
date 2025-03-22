@@ -26,14 +26,14 @@ async def extract_first_paragraph(pdf_content):
         
         # Sprawdź, czy PDF ma co najmniej jedną stronę
         if len(pdf_reader.pages) < 1:
-            return "PDF nie zawiera żadnych stron."
+            return get_text("pdf_no_pages", language)
         
         # Pobierz tekst z pierwszej strony
         first_page = pdf_reader.pages[0]
         text = first_page.extract_text()
         
         if not text:
-            return "Nie można odczytać tekstu z pierwszej strony PDF."
+            return get_text("pdf_first_page_unreadable", language)
         
         # Podziel tekst na akapity (zakładamy, że akapity są oddzielone podwójnymi znakami nowej linii)
         paragraphs = re.split(r'\n\s*\n', text)
@@ -48,7 +48,7 @@ async def extract_first_paragraph(pdf_content):
         if text.strip():
             return text.strip()[:500]
         
-        return "Nie znaleziono wyraźnych akapitów w tekście."
+        return get_text("pdf_no_paragraphs", language)
     
     except Exception as e:
         logger.error(f"Błąd podczas ekstrahowania akapitu z PDF: {e}")

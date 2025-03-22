@@ -87,7 +87,7 @@ def format_transaction_report(cost, credits_before, credits_after, operation):
     Returns:
         str: Formatted transaction report
     """
-    return f"*📊 Raport transakcji:*\n\n▪️ Operacja: {operation}\n▪️ Koszt: {cost} kredytów\n▪️ Stan przed: {credits_before} kredytów\n▪️ Stan po: {credits_after} kredytów"
+    return get_text("transaction_report", language, operation=operation, cost=cost, credits_before=credits_before, credits_after=credits_after)
 
 def format_onboarding_step(step_number, total_steps, title, description, action_text):
     """
@@ -105,7 +105,7 @@ def format_onboarding_step(step_number, total_steps, title, description, action_
     """
     from utils.ui_elements import progress_bar
     
-    progress = f"Krok {step_number}/{total_steps}"
+    progress = get_text("step_progress", language, current=step_number, total=total_steps)
     bar = progress_bar(step_number, total_steps)
     
     return f"*{progress}*\n{bar}\n\n*{title}*\n\n{description}\n\n*Co zrobić:*\n{action_text}"
@@ -147,12 +147,12 @@ def enhance_credits_display(credits, bot_name):
     status_bar = credit_status_bar(credits)
     
     content = (
-        f"*Dostępne kredyty:* {credits}\n\n"
+        f"*{get_text('available_credits', language)}:* {credits}\n\n"
         f"{status_bar}\n\n"
-        f"Używaj ich mądrze do prowadzenia rozmów, generowania obrazów i analizowania dokumentów."
+        f"{get_text('use_credits_wisely', language)}"
     )
     
-    return info_card(f"{bot_name} - Stan kredytów", content, category="credits")
+    return info_card(f"{bot_name} - {get_text('credit_status', language)}", content, category="credits")
 
 def format_mode_selection(mode_name, mode_description, credit_cost, model_name):
     """
@@ -172,13 +172,13 @@ def format_mode_selection(mode_name, mode_description, credit_cost, model_name):
     premium_indicator = "⭐ " if credit_cost > 1 else ""
     
     content = (
-        f"*Opis:* {mode_description}\n\n"
-        f"*Model:* {model_name}\n"
-        f"*Koszt:* {credit_cost} kredytów za wiadomość\n\n"
-        f"Możesz teraz zadać pytanie lub przejść do menu."
+        f"*{get_text('description', language)}:* {mode_description}\n\n"
+        f"*{get_text('current_model', language)}:* {model_name}\n"
+        f"*{get_text('cost', language)}:* {credit_cost} {get_text('credits_per_message', language)}\n\n"
+        f"{get_text('ask_question_now', language)}"
     )
     
-    return info_card(f"{premium_indicator}Tryb: {mode_name}", content, category="chat")
+    return info_card(f"{premium_indicator}{get_text('selected_mode', language)}: {mode_name}", content, category="chat")
 
 def enhance_help_message(help_text):
     """

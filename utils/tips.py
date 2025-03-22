@@ -3,74 +3,86 @@
 Module for managing usage tips and contextual help
 """
 import random
+from utils.translations import get_text
+from utils.user_utils import get_user_language
 
-# Define categories of tips
-GENERAL_TIPS = [
-    "Krótsze pytania zazwyczaj zużywają mniej kredytów niż długie opisy.",
-    "Używaj trybu GPT-3.5 dla prostych pytań, a GPT-4 tylko dla złożonych zadań.",
-    "Możesz zaoszczędzić kredyty używając /mode aby wybrać tańszy model.",
-    "Pamiętaj, że możesz wrócić do poprzedniej konwersacji klikając 'Ostatnia rozmowa'.",
-    "Dokładne i konkretne pytania pozwalają uzyskać lepsze odpowiedzi."
-]
+def get_general_tips(language="pl"):
+    """Get list of general tips in specific language"""
+    return [
+        get_text("tip_shorter_questions", language),
+        get_text("tip_model_selection", language),
+        get_text("tip_save_credits_with_mode", language),
+        get_text("tip_previous_conversation", language),
+        get_text("tip_specific_questions", language)
+    ]
 
-CREDITS_TIPS = [
-    "Zaproś znajomych przez program referencyjny, aby otrzymać darmowe kredyty.",
-    "Kupując większe pakiety kredytów, otrzymasz lepszy stosunek wartości do ceny.",
-    "Aktywuj powiadomienia o niskim stanie kredytów, aby uniknąć niespodzianek.",
-    "GPT-3.5 jest 5 razy tańszy niż GPT-4 - używaj go do prostszych zadań.",
-    "Ustaw miesięczną subskrypcję, aby automatycznie doładowywać kredyty."
-]
+def get_credits_tips(language="pl"):
+    """Get list of credit-related tips in specific language"""
+    return [
+        get_text("tip_referral_program", language),
+        get_text("tip_bulk_purchase", language),
+        get_text("tip_low_credits_notification", language),
+        get_text("tip_gpt35_cheaper", language),
+        get_text("tip_monthly_subscription", language)
+    ]
 
-IMAGE_TIPS = [
-    "Dodanie słów 'wysokiej jakości', 'fotorealistyczny' do opisu obrazu może poprawić wyniki.",
-    "Im bardziej szczegółowy opis, tym lepszy obraz zostanie wygenerowany.",
-    "Podaj styl artystyczny (np. 'w stylu impresjonistycznym'), aby uzyskać określony wygląd.",
-    "Opisz oświetlenie i kompozycję dla bardziej profesjonalnych obrazów.",
-    "Unikaj generowania wielu wariantów tego samego obrazu, aby oszczędzać kredyty."
-]
+def get_image_tips(language="pl"):
+    """Get list of image-related tips in specific language"""
+    return [
+        get_text("tip_image_quality", language),
+        get_text("tip_image_details", language),
+        get_text("tip_image_style", language),
+        get_text("tip_image_lighting", language),
+        get_text("tip_image_variants", language)
+    ]
 
-DOCUMENT_TIPS = [
-    "Zdjęcia z wyraźnym tekstem dają lepsze wyniki przy tłumaczeniu.",
-    "Dla tłumaczenia wielu stron warto rozważyć podział dokumentu na mniejsze części.",
-    "Pliki PDF są łatwiejsze do analizy niż zdjęcia tekstu.",
-    "Upewnij się, że dokument jest wyraźny i dobrze zeskanowany dla najlepszych wyników.",
-    "Analizowanie konkretnych stron dokumentu zamiast całości może zaoszczędzić kredyty."
-]
+def get_document_tips(language="pl"):
+    """Get list of document-related tips in specific language"""
+    return [
+        get_text("tip_document_text_clarity", language),
+        get_text("tip_document_multipage", language),
+        get_text("tip_document_pdf", language),
+        get_text("tip_document_quality", language),
+        get_text("tip_document_specific_pages", language)
+    ]
 
-# Tips displayed in sequence for new users
-ONBOARDING_TIPS = [
-    "Witaj! Zacznij od wybrania trybu czatu, który najlepiej pasuje do Twoich potrzeb.",
-    "Pamiętaj, że możesz zmienić tryb czatu w dowolnym momencie używając komendy /mode.",
-    "Dokumenty i zdjęcia można przesyłać bezpośrednio do analizy lub tłumaczenia.",
-    "Aby wygenerować obraz, użyj komendy /image wraz z opisem obrazu.",
-    "Sprawdzaj stan kredytów regularnie za pomocą /credits lub w menu głównym."
-]
+def get_onboarding_tips(language="pl"):
+    """Get list of onboarding tips in specific language"""
+    return [
+        get_text("tip_onboarding_welcome", language),
+        get_text("tip_onboarding_modes", language),
+        get_text("tip_onboarding_documents", language),
+        get_text("tip_onboarding_images", language),
+        get_text("tip_onboarding_credits", language)
+    ]
 
-# Collection of all tips
-ALL_TIPS = GENERAL_TIPS + CREDITS_TIPS + IMAGE_TIPS + DOCUMENT_TIPS
-
-def get_random_tip(category=None):
+def get_random_tip(category=None, language="pl"):
     """
     Returns a random tip, optionally from a specific category
     
     Args:
-        category (str, optional): Category of tips ('general', 'credits', 'image', 'document')
+        category (str, optional): Category of tips ('general', 'credits', 'image', 'document', 'onboarding')
+        language (str): Language code for the tip
         
     Returns:
         str: Random tip
     """
     if category == 'general':
-        return random.choice(GENERAL_TIPS)
+        tips = get_general_tips(language)
     elif category == 'credits':
-        return random.choice(CREDITS_TIPS)
+        tips = get_credits_tips(language)
     elif category == 'image':
-        return random.choice(IMAGE_TIPS)
+        tips = get_image_tips(language)
     elif category == 'document':
-        return random.choice(DOCUMENT_TIPS)
+        tips = get_document_tips(language)
     elif category == 'onboarding':
-        return random.choice(ONBOARDING_TIPS)
+        tips = get_onboarding_tips(language)
     else:
-        return random.choice(ALL_TIPS)
+        # Combine all tips except onboarding
+        tips = (get_general_tips(language) + get_credits_tips(language) + 
+                get_image_tips(language) + get_document_tips(language))
+    
+    return random.choice(tips)
 
 def should_show_tip(user_id, context, frequency=5):
     """
@@ -148,14 +160,17 @@ def get_contextual_tip(category, context, user_id):
     if not should_show_tip(user_id, context):
         return None
     
+    # Get the user's language
+    language = get_user_language(context, user_id)
+    
     # Get a tip from the relevant category
     if category in ['chat', 'message']:
-        return get_random_tip('general')
+        return get_random_tip('general', language)
     elif category in ['credits', 'buy']:
-        return get_random_tip('credits')
+        return get_random_tip('credits', language)
     elif category == 'image':
-        return get_random_tip('image')
+        return get_random_tip('image', language)
     elif category in ['document', 'pdf', 'translation']:
-        return get_random_tip('document')
+        return get_random_tip('document', language)
     else:
-        return get_random_tip()
+        return get_random_tip(language=language)

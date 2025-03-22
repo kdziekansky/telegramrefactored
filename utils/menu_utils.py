@@ -115,8 +115,8 @@ def safe_markdown(text):
         text = text.replace('`', '\\`')
     
     # 4. Unikaj problematycznych sekwencji
-    text = text.replace('__', '\_\_')
-    text = text.replace('**', '\*\*')
+    text = text.replace('__', '\\_\\_')
+    text = text.replace('**', '\\*\\*')
     
     return text
 

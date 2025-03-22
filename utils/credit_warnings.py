@@ -1,3 +1,6 @@
+from utils.translations import get_text
+from utils.user_utils import get_user_language
+
 # utils/credit_warnings.py
 """
 Module for credit-related warnings and notifications
@@ -33,28 +36,28 @@ def check_operation_cost(user_id, cost, current_credits, operation_name, context
     # Determine warning level
     if cost > current_credits:
         level = 'critical'
-        message = f"❌ Niewystarczające kredyty. Potrzebujesz jeszcze {cost - current_credits} kredytów, aby wykonać tę operację."
-        require_confirmation = False  # No need for confirmation if operation can't proceed
+        message = get_text("insufficient_credits", language, credits_needed=cost - current_credits)
+        require_confirmation = False
     elif cost >= current_credits * 0.7:
         level = 'critical'
-        message = f"⚠️ Ta operacja zużyje aż {cost} z {current_credits} dostępnych kredytów ({int(cost/current_credits*100)}%)."
+        message = get_text("operation_uses_most_credits", language, cost=cost, current=current_credits, percentage=int(cost/current_credits*100))
         require_confirmation = True
     elif cost >= current_credits * 0.5:
         level = 'warning'
-        message = f"⚠️ Ta operacja zużyje ponad połowę Twoich dostępnych kredytów ({cost} z {current_credits})."
+        message = get_text("operation_uses_half_credits_detailed", language, cost=cost, current=current_credits)
         require_confirmation = True
     elif cost >= 5:
         level = 'info'
-        message = f"ℹ️ Koszt operacji: {cost} kredytów. Pozostanie: {remaining} kredytów."
+        message = get_text("operation_cost_info", language, cost=cost, remaining=remaining)
         # Check if we've shown info for this operation type recently
         last_warning = context.chat_data['user_data'][user_id].get('last_cost_warning', {})
         if last_warning.get('operation') == operation_name and last_warning.get('count', 0) > 2:
-            require_confirmation = False  # Don't require confirmation if we've shown it multiple times
+            require_confirmation = False
         else:
             require_confirmation = True
     else:
         level = 'none'
-        message = f"Koszt operacji: {cost} kredytów"
+        message = get_text("operation_cost", language, cost=cost)
         require_confirmation = False
     
     # Update last warning information
@@ -87,9 +90,9 @@ def get_low_credits_notification(credits, threshold=10):
         str or None: Notification message or None if credits are above threshold
     """
     if credits <= 3:
-        return "🔴 *Krytycznie niski stan kredytów!* Dodaj kredyty, aby kontynuować korzystanie z bota."
+        return get_text("critically_low_credits", language)
     elif credits <= threshold:
-        return f"🟠 *Niski stan kredytów:* Masz tylko {credits} kredytów. Rozważ zakup pakietu, aby uniknąć przerwy w korzystaniu z bota."
+        return get_text("low_credits", language, credits=credits)
     else:
         return None
 
@@ -106,7 +109,7 @@ def format_credit_usage_report(operation, cost, credits_before, credits_after):
     Returns:
         str: Formatted credit usage report
     """
-    return f"*📊 Raport użycia kredytów:*\n\n▪️ Operacja: {operation}\n▪️ Koszt: {cost} kredytów\n▪️ Pozostało: {credits_after} kredytów"
+    return get_text("credit_usage_report", language, operation=operation, cost=cost, credits_after=credits_after)
 
 def get_credit_recommendation(user_id, context):
     """
@@ -162,8 +165,7 @@ def get_credit_recommendation(user_id, context):
             'credits': recommended_package['credits'],
             'price': recommended_package['price'],
             'days_coverage': int(days_coverage),
-            'reason': f"Na podstawie Twojego zużycia ({int(daily_usage)} kredytów dziennie), "
-                      f"ten pakiet wystarczy na około {int(days_coverage)} dni."
+            'reason': get_text("package_recommendation_reason", language, daily_usage=int(daily_usage), days_coverage=int(days_coverage))
         }
     
     return None

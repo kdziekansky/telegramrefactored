@@ -43,7 +43,7 @@ async def chat_completion_stream(messages, model=DEFAULT_MODEL):
             if chunk.choices and chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
     except Exception as e:
-        error_msg = f"Błąd API OpenAI (stream): {str(e)}"
+        error_msg = get_text("openai_stream_error", language, error=str(e))
         print(error_msg)
         yield error_msg
 
@@ -196,7 +196,7 @@ async def analyze_document(file_content, file_name, mode="analyze", target_langu
         return response.choices[0].message.content
     except Exception as e:
         print(f"Błąd analizy dokumentu: {e}")
-        return f"Sorry, an error occurred while analyzing the document: {str(e)}"
+        return get_text("document_analysis_error", language, error=str(e))
 
 async def analyze_image(image_content, image_name, mode="analyze", target_language="en"):
     """
@@ -267,4 +267,4 @@ async def analyze_image(image_content, image_name, mode="analyze", target_langua
         return response.choices[0].message.content
     except Exception as e:
         print(f"Błąd analizy obrazu: {e}")
-        return f"Sorry, an error occurred while analyzing the image: {str(e)}"
+        return get_text("image_analysis_error", language, error=str(e))

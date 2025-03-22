@@ -1,3 +1,6 @@
+from utils.translations import get_text
+from utils.user_utils import get_user_language
+
 # utils/ui_elements.py
 """
 Module for creating UI elements for better visual representation in bot messages
@@ -81,13 +84,13 @@ def credit_status_bar(credits, warning_threshold=20, critical_threshold=5):
         str: Formatted credit status with color indicator
     """
     if credits <= critical_threshold:
-        status = "❗ *Krytycznie niski*"
+        status = get_text("credit_status_critical", language)
         emoji = "🔴"
     elif credits <= warning_threshold:
-        status = "⚠️ *Niski*"
+        status = get_text("credit_status_low", language)
         emoji = "🟠"
     else:
-        status = "✅ *Dobry*"
+        status = get_text("credit_status_good", language)
         emoji = "🟢"
     
     # Max credits for display purposes
@@ -95,7 +98,7 @@ def credit_status_bar(credits, warning_threshold=20, critical_threshold=5):
     
     bar = progress_bar(credits, max_display)
     
-    return f"{emoji} *Stan kredytów:* {credits}\n{status}\n{bar}"
+    return f"{emoji} {get_text('credit_status', language)} {credits}\n{status}\n{bar}"
 
 def info_card(title, content, category=None):
     """
@@ -161,16 +164,16 @@ def cost_warning(cost, current_credits, operation_name):
     remaining = current_credits - cost
     
     if cost > current_credits:
-        status = "❌ *Niewystarczające środki*"
-        message = f"Potrzebujesz jeszcze {cost - current_credits} kredytów, aby wykonać tę operację."
+        status = get_text("insufficient_funds", language)
+        message = get_text("need_more_credits", language, credits_needed=cost - current_credits)
     elif cost > current_credits * 0.5:
-        status = "⚠️ *Wysokie zużycie*"
-        message = f"Ta operacja zużyje ponad połowę Twoich dostępnych kredytów."
+        status = get_text("high_usage", language)
+        message = get_text("operation_uses_half_credits", language)
     else:
-        status = "ℹ️ *Informacja o koszcie*"
-        message = f"Po wykonaniu tej operacji pozostanie Ci {remaining} kredytów."
+        status = get_text("cost_info", language)
+        message = get_text("credits_remaining_after_operation", language, remaining=remaining)
     
-    return f"{status}\n\n*Operacja:* {operation_name}\n*Koszt:* {cost} kredytów\n*Aktualny stan:* {current_credits} kredytów\n\n{message}"
+    return f"{status}\n\n{get_text('operation', language)} {operation_name}\n*{get_text('cost', language)}:* {cost} {get_text('credits', language)}\n*{get_text('current_credits', language)}:* {current_credits} {get_text('credits', language)}\n\n{message}"
 
 def feature_badge(feature_name, is_premium=False, cost=None):
     """
@@ -227,4 +230,4 @@ def usage_tip(tip_text):
     Returns:
         str: Formatted tip
     """
-    return f"💡 *Porada:* {tip_text}"
+    return f"💡 *{get_text('tip', language)}:* {tip_text}"

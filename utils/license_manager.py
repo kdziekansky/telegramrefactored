@@ -74,7 +74,7 @@ def get_subscription_details(end_date):
             "active": False,
             "end_date": None,
             "days_left": 0,
-            "status": "Nieaktywna"
+            "status": get_text("subscription_inactive", language)
         }
     
     now = datetime.datetime.now(pytz.UTC)
@@ -84,7 +84,7 @@ def get_subscription_details(end_date):
         "active": days_left > 0,
         "end_date": end_date,
         "days_left": max(0, days_left),
-        "status": "Aktywna" if days_left > 0 else "Wygasła"
+        "status": get_text("subscription_active", language) if days_left > 0 else get_text("subscription_expired_status", language)
     }
 
 def validate_license_key(license_key):
