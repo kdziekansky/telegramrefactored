@@ -395,7 +395,17 @@ async def handle_payment_callback(update: Update, context: ContextTypes.DEFAULT_
                     callback_data=f"cancel_subscription_{sub['id']}"
                 )
             ])
+
+    # Obsługa przycisku powrotu do menu kredytów
+    elif query.data == "payment_back_to_credits":
+        # Importuj funkcję obsługującą sekcję kredytów
+        from handlers.menu_handler import handle_credits_section
         
+        # Wywołaj z odpowiednią ścieżką nawigacji
+        language = get_user_language(context, user_id)
+        nav_path = get_text("main_menu", language, default="Menu główne") + " > " + get_text("menu_credits", language)
+        return await handle_credits_section(update, context, nav_path)
+
         # Dodaj przycisk powrotu
         keyboard.append([
             InlineKeyboardButton(

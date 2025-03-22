@@ -70,7 +70,6 @@ async def credits_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Create enhanced buttons for credits
     keyboard = [
         [
-            InlineKeyboardButton("📊 " + get_text("view_stats", language, default="Statystyki"), callback_data="credit_advanced_analytics"),
             InlineKeyboardButton("💳 " + get_text("buy_credits_btn", language), callback_data="menu_credits_buy")
         ],
         [
@@ -84,6 +83,7 @@ async def credits_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("⬅️ " + get_text("back", language, default="Powrót"), callback_data="menu_back_main")
         ]
     ]
+
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
@@ -207,7 +207,6 @@ async def handle_credit_callback(update: Update, context: ContextTypes.DEFAULT_T
         # Create keyboard
         keyboard = [
             [InlineKeyboardButton(get_text("buy_more_credits", language), callback_data="menu_credits_buy")],
-            [InlineKeyboardButton(get_text("credit_stats", language), callback_data="credit_advanced_analytics")],
             [InlineKeyboardButton(get_text("back", language), callback_data="menu_section_credits")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)

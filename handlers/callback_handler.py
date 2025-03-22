@@ -7,6 +7,7 @@ from utils.translations import get_text
 from database.supabase_client import create_new_conversation, get_active_conversation
 from database.credits_client import get_user_credits, get_credit_packages
 from config import BOT_NAME
+from config import BOT_NAME, AVAILABLE_LANGUAGES
 
 async def handle_buy_credits(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Obsługuje przycisk zakupu kredytów"""
@@ -125,6 +126,50 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 print(f"Błąd przy tworzeniu nowej rozmowy: {e}")
                 import traceback
                 traceback.print_exc()
+
+    # Specjalna obsługa dla settings_language
+    if query.data == "settings_language":
+        keyboard = []
+        for lang_code, lang_name in AVAILABLE_LANGUAGES.items():
+            keyboard.append([
+                InlineKeyboardButton(
+                    lang_name, 
+                    callback_data=f"start_lang_{lang_code}"
+                )
+            ])
+        
+        # Dodaj przycisk powrotu
+        keyboard.append([
+            InlineKeyboardButton(get_text("back", language), callback_data="menu_section_settings")
+        ])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        message_text = get_text("settings_choose_language", language, default="Wybierz język:")
+        
+        # Sprawdź, czy wiadomość ma zdjęcie/podpis czy jest tekstem
+        is_caption = hasattr(query.message, 'caption') and query.message.caption is not None
+        
+        try:
+            if is_caption:
+                await query.edit_message_caption(
+                    caption=message_text, 
+                    reply_markup=reply_markup
+                )
+            else:
+                await query.edit_message_text(
+                    text=message_text, 
+                    reply_markup=reply_markup
+                )
+            return True
+        except Exception as e:
+            print(f"Błąd przy edycji menu języka: {e}")
+            # W przypadku błędu wyślij nową wiadomość
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=message_text,
+                reply_markup=reply_markup
+            )
+            return True
 
     elif query.data == "quick_last_chat":
         try:

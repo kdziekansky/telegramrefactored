@@ -248,6 +248,8 @@ async def handle_settings_callbacks(update, context):
     user_id = query.from_user.id
     language = get_user_language(context, user_id)
     
+    await query.answer()  # Odpowiedz na callback, aby usunąć oczekiwanie
+    
     # Obsługa opcji ustawień
     if query.data.startswith("settings_"):
         settings_type = query.data[9:]  # Usuń prefiks "settings_"
@@ -256,7 +258,7 @@ async def handle_settings_callbacks(update, context):
             await handle_model_selection(update, context)
             return True
         elif settings_type == "language":
-            # Pokaż menu wyboru języka
+            # Pokaż menu wyboru języka z obsługą zarówno zdjęć jak i wiadomości tekstowych
             keyboard = []
             for lang_code, lang_name in AVAILABLE_LANGUAGES.items():
                 keyboard.append([
@@ -273,8 +275,29 @@ async def handle_settings_callbacks(update, context):
             
             reply_markup = InlineKeyboardMarkup(keyboard)
             
+            # Sprawdź, czy wiadomość ma zdjęcie (caption) czy jest tekstowa
             message_text = get_text("settings_choose_language", language, default="Wybierz język:")
-            await update_menu(query, message_text, reply_markup)
+            is_caption = hasattr(query.message, 'caption') and query.message.caption is not None
+            
+            try:
+                if is_caption:
+                    await query.edit_message_caption(
+                        caption=message_text,
+                        reply_markup=reply_markup
+                    )
+                else:
+                    await query.edit_message_text(
+                        text=message_text,
+                        reply_markup=reply_markup
+                    )
+            except Exception as e:
+                print(f"Błąd przy aktualizacji menu języka: {e}")
+                # W przypadku błędu wysyłamy nową wiadomość
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=message_text,
+                    reply_markup=reply_markup
+                )
             return True
         elif settings_type == "name":
             await handle_name_settings(update, context)
@@ -308,7 +331,27 @@ async def handle_settings_callbacks(update, context):
         keyboard = [[InlineKeyboardButton("⬅️ " + get_text("back", language_code), callback_data="menu_section_settings")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        await update_menu(query, message, reply_markup)
+        # Obsługa zarówno wiadomości tekstowych jak i wiadomości z caption
+        is_caption = hasattr(query.message, 'caption') and query.message.caption is not None
+        try:
+            if is_caption:
+                await query.edit_message_caption(
+                    caption=message,
+                    reply_markup=reply_markup
+                )
+            else:
+                await query.edit_message_text(
+                    text=message,
+                    reply_markup=reply_markup
+                )
+        except Exception as e:
+            print(f"Błąd przy aktualizacji potwierdzenia zmiany języka: {e}")
+            # W przypadku błędu wysyłamy nową wiadomość
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=message,
+                reply_markup=reply_markup
+            )
         return True
     
     # Obsługa wyboru modelu 
@@ -338,7 +381,30 @@ async def handle_settings_callbacks(update, context):
         keyboard = [[InlineKeyboardButton("⬅️ " + get_text("back", language), callback_data="menu_section_settings")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        await update_menu(query, message, reply_markup, parse_mode="Markdown")
+        # Obsługa zarówno wiadomości tekstowych jak i wiadomości z caption
+        is_caption = hasattr(query.message, 'caption') and query.message.caption is not None
+        try:
+            if is_caption:
+                await query.edit_message_caption(
+                    caption=message,
+                    reply_markup=reply_markup,
+                    parse_mode="Markdown"
+                )
+            else:
+                await query.edit_message_text(
+                    text=message,
+                    reply_markup=reply_markup,
+                    parse_mode="Markdown"
+                )
+        except Exception as e:
+            print(f"Błąd przy aktualizacji potwierdzenia zmiany modelu: {e}")
+            # W przypadku błędu wysyłamy nową wiadomość
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=message,
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
         return True
     
     return False  # Nie obsłużono callbacku
@@ -1647,6 +1713,64 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await interactive_onboarding(mock_update, context)
         return True
     
+    # Bezpośrednia obsługa przycisku wyboru języka
+    elif query.data == "settings_language":
+        user_id = query.from_user.id
+        language = get_user_language(context, user_id)
+        
+        # Utwórz klawiaturę z dostępnymi językami
+        keyboard = []
+        for lang_code, lang_name in AVAILABLE_LANGUAGES.items():
+            keyboard.append([
+                InlineKeyboardButton(
+                    lang_name, 
+                    callback_data=f"start_lang_{lang_code}"
+                )
+            ])
+        
+        # Dodaj przycisk powrotu
+        keyboard.append([
+            InlineKeyboardButton("⬅️ " + get_text("back", language), callback_data="menu_section_settings")
+        ])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        # Tekst wiadomości
+        message_text = get_text("settings_choose_language", language, default="Wybierz język:")
+        
+        # Sprawdź, czy wiadomość ma zdjęcie (jest to najczęstszy przypadek tego błędu)
+        is_photo = False
+        if hasattr(query.message, 'photo') and query.message.photo:
+            is_photo = True
+        
+        # Sprawdź, czy wiadomość ma podpis
+        has_caption = hasattr(query.message, 'caption') and query.message.caption is not None
+        
+        try:
+            # Spróbuj odpowiednią metodę w zależności od typu wiadomości
+            if is_photo or has_caption:
+                # Dla zdjęć i wiadomości z podpisem używamy edit_message_caption
+                await query.edit_message_caption(
+                    caption=message_text,
+                    reply_markup=reply_markup
+                )
+            else:
+                # Dla zwykłych wiadomości tekstowych używamy edit_message_text
+                await query.edit_message_text(
+                    text=message_text,
+                    reply_markup=reply_markup
+                )
+        except Exception as e:
+            print(f"Błąd przy edycji wiadomości: {e}")
+            # W przypadku jakiegokolwiek błędu, wyślij nową wiadomość
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=message_text,
+                reply_markup=reply_markup
+            )
+        
+        return True
+
     # Obsługa kredytów i płatności
     try:
         # Sprawdź, czy to callback związany z kredytami
