@@ -1000,8 +1000,17 @@ async def handle_back_to_main(update, context):
     user_id = query.from_user.id
     language = get_user_language(context, user_id)
     
-    # Pobierz bogaty tekst powitalny
+    # Usuń aktualną wiadomość menu
+    try:
+        await query.message.delete()
+    except Exception as e:
+        print(f"Błąd przy usuwaniu wiadomości: {e}")
+    
+    # Pobierz tekst powitalny i usuń potencjalnie problematyczne znaczniki
     welcome_text = get_text("welcome_message", language, bot_name=BOT_NAME)
+    
+    # Link do zdjęcia bannera
+    banner_url = "https://i.imgur.com/YPubLDE.png?v-1123"
     
     # Utwórz klawiaturę menu
     keyboard = [
@@ -1021,36 +1030,31 @@ async def handle_back_to_main(update, context):
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    # Unikamy problemów z update_menu używając bezpośrednio metod edycji wiadomości
     try:
-        if hasattr(query.message, 'caption'):
-            await query.edit_message_caption(
-                caption=welcome_text,
-                reply_markup=reply_markup
-            )
-        else:
-            await query.edit_message_text(
-                text=welcome_text,
-                reply_markup=reply_markup
-            )
+        # Najpierw próba bez formatowania Markdown
+        message = await context.bot.send_photo(
+            chat_id=query.message.chat_id,
+            photo=banner_url,
+            caption=welcome_text,
+            reply_markup=reply_markup
+        )
         
-        # Zapisz stan menu
+        # Zapisz ID wiadomości menu i stan menu
         menu_state.set_state(user_id, 'main')
-        menu_state.set_message_id(user_id, query.message.message_id)
+        menu_state.set_message_id(user_id, message.message_id)
         menu_state.save_to_context(context, user_id)
         
-        print(f"Powrót do menu głównego dla użytkownika {user_id}")
         return True
     except Exception as e:
-        print(f"Błąd przy powrocie do menu głównego: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"Błąd przy wysyłaniu głównego menu ze zdjęciem: {e}")
         
-        # Ostatnia szansa - wysyłamy nową wiadomość
+        # Usuń wszystkie znaki formatowania Markdown
+        clean_text = welcome_text.replace("*", "").replace("_", "").replace("`", "").replace("[", "").replace("]", "")
+        
         try:
             message = await context.bot.send_message(
                 chat_id=query.message.chat_id,
-                text=welcome_text,
+                text=clean_text,
                 reply_markup=reply_markup
             )
             
@@ -1059,11 +1063,20 @@ async def handle_back_to_main(update, context):
             menu_state.set_message_id(user_id, message.message_id)
             menu_state.save_to_context(context, user_id)
             
-            print(f"Wysłano nową wiadomość menu dla użytkownika {user_id}")
             return True
         except Exception as e2:
-            print(f"Błąd przy wysyłaniu nowej wiadomości menu: {e2}")
-            return False
+            print(f"Błąd przy wysyłaniu fallbacku menu: {e2}")
+            
+            # Ostatnia próba - podstawowa wiadomość
+            try:
+                message = await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text="Menu główne",
+                    reply_markup=reply_markup
+                )
+                return True
+            except:
+                return False
 
 async def handle_model_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Obsługuje wybór modelu AI"""
