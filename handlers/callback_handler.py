@@ -68,26 +68,63 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     
     # 10. Szybkie akcje
     if query.data == "quick_new_chat":
-        try:
-            # Utwórz nową konwersację
-            conversation = create_new_conversation(user_id)
-            mark_chat_initialized(context, user_id)
-            
-            await query.answer(get_text("new_chat_created", language))
-            
-            # Zamknij menu, aby użytkownik mógł zacząć pisać
-            await query.message.delete()
-            
-            # Wyślij komunikat potwierdzający
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text=get_text("new_chat_created_message", language)
-            )
-            return True
-        except Exception as e:
-            print(f"Błąd przy tworzeniu nowej rozmowy: {e}")
-            import traceback
-            traceback.print_exc()
+            try:
+                # Utwórz nową konwersację
+                conversation = create_new_conversation(user_id)
+                mark_chat_initialized(context, user_id)
+                
+                await query.answer(get_text("new_chat_created", language))
+                
+                # Zamknij menu, aby użytkownik mógł zacząć pisać
+                await query.message.delete()
+                
+                # Determine current mode and cost
+                from config import DEFAULT_MODEL, AVAILABLE_MODELS, CHAT_MODES, CREDIT_COSTS
+                
+                # Default values
+                current_mode = "no_mode"
+                model_to_use = DEFAULT_MODEL
+                credit_cost = CREDIT_COSTS["message"].get(model_to_use, 1)
+                
+                # Get user's selected mode if available
+                if 'user_data' in context.chat_data and user_id in context.chat_data['user_data']:
+                    user_data = context.chat_data['user_data'][user_id]
+                    
+                    # Check for current mode
+                    if 'current_mode' in user_data and user_data['current_mode'] in CHAT_MODES:
+                        current_mode = user_data['current_mode']
+                        model_to_use = CHAT_MODES[current_mode].get("model", DEFAULT_MODEL)
+                        credit_cost = CHAT_MODES[current_mode]["credit_cost"]
+                    
+                    # Check for current model (overrides mode's model)
+                    if 'current_model' in user_data and user_data['current_model'] in AVAILABLE_MODELS:
+                        model_to_use = user_data['current_model']
+                        credit_cost = CREDIT_COSTS["message"].get(model_to_use, CREDIT_COSTS["message"]["default"])
+                
+                # Get friendly model name
+                model_name = AVAILABLE_MODELS.get(model_to_use, model_to_use)
+                
+                # Create new chat message with model info
+                base_message = "✅ Utworzono nową rozmowę. Możesz zacząć pisać! "  # Ujednolicony komunikat
+                model_info = f"Używasz modelu {model_name} za {credit_cost} kredyt(ów) za wiadomość"
+                
+                # Tylko jeden przycisk - wybór modelu
+                keyboard = [
+                    [InlineKeyboardButton("🤖 Wybierz model czatu", callback_data="settings_model")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                # Wyślij komunikat potwierdzający
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=base_message + model_info,
+                    reply_markup=reply_markup
+                )
+                return True
+            except Exception as e:
+                print(f"Błąd przy tworzeniu nowej rozmowy: {e}")
+                import traceback
+                traceback.print_exc()
 
     elif query.data == "quick_last_chat":
         try:
@@ -95,12 +132,12 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             conversation = get_active_conversation(user_id)
             
             if conversation:
-                await query.answer(get_text("returning_to_last_chat", language))
+                await query.answer(get_text("returning_to_last_chat", language, default="Powrót do ostatniej rozmowy"))
                 
                 # Zamknij menu
                 await query.message.delete()
             else:
-                await query.answer(get_text("no_active_chat", language))
+                await query.answer(get_text("no_active_chat", language, default="Brak aktywnej rozmowy"))
                 
                 # Utwórz nową konwersację
                 create_new_conversation(user_id)

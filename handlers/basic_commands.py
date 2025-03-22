@@ -190,21 +190,44 @@ async def new_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Oznacz czat jako zainicjowany
         mark_chat_initialized(context, user_id)
         
-        # Dodaj przyciski menu dla łatwiejszej nawigacji
+        # Determine current mode and cost
+        from config import DEFAULT_MODEL, AVAILABLE_MODELS, CHAT_MODES, CREDIT_COSTS
+        
+        # Default values
+        current_mode = "no_mode"
+        model_to_use = DEFAULT_MODEL
+        credit_cost = CREDIT_COSTS["message"].get(model_to_use, 1)
+        
+        # Get user's selected mode if available
+        if 'user_data' in context.chat_data and user_id in context.chat_data['user_data']:
+            user_data = context.chat_data['user_data'][user_id]
+            
+            # Check for current mode
+            if 'current_mode' in user_data and user_data['current_mode'] in CHAT_MODES:
+                current_mode = user_data['current_mode']
+                model_to_use = CHAT_MODES[current_mode].get("model", DEFAULT_MODEL)
+                credit_cost = CHAT_MODES[current_mode]["credit_cost"]
+            
+            # Check for current model (overrides mode's model)
+            if 'current_model' in user_data and user_data['current_model'] in AVAILABLE_MODELS:
+                model_to_use = user_data['current_model']
+                credit_cost = CREDIT_COSTS["message"].get(model_to_use, CREDIT_COSTS["message"]["default"])
+        
+        # Get friendly model name
+        model_name = AVAILABLE_MODELS.get(model_to_use, model_to_use)
+        
+        # Create new chat message with model info
+        base_message = "✅ Utworzono nową rozmowę. Możesz zacząć pisać! "  # Ujednolicony komunikat
+        model_info = f"Używasz modelu {model_name} za {credit_cost} kredyt(ów) za wiadomość"
+        
+        # Tylko jeden przycisk - wybór modelu
         keyboard = [
-            [InlineKeyboardButton(get_text("menu_chat_mode", language), callback_data="menu_section_chat_modes")],
-            [InlineKeyboardButton(get_text("menu_credits", language), callback_data="menu_section_credits")],
-            # Pasek szybkiego dostępu
-            [
-                InlineKeyboardButton("💬 " + get_text("last_chat", language, default="Ostatnia rozmowa"), callback_data="quick_last_chat"),
-                InlineKeyboardButton("💸 " + get_text("buy_credits_btn", language, default="Kup kredyty"), callback_data="quick_buy_credits")
-            ],
-            [InlineKeyboardButton("⬅️ " + get_text("back_to_main_menu", language, default="Powrót do menu głównego"), callback_data="menu_back_main")]
+            [InlineKeyboardButton("🤖 Wybierz model czatu", callback_data="settings_model")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await update.message.reply_text(
-            get_text("newchat_command", language),
+            base_message + model_info,
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=reply_markup
         )
