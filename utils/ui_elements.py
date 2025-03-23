@@ -1,11 +1,7 @@
 # utils/ui_elements.py
-"""
-Unified module for UI elements and visual styling
-Combines functionality of ui_elements.py and visual_styles.py
-"""
+"""Unified module for UI elements and visual styling"""
 from utils.translations import get_text
 
-# Define color scheme for different message categories
 COLOR_SCHEME = {
     'chat': {
         'emoji': '💬',
@@ -107,7 +103,6 @@ COLOR_SCHEME = {
     }
 }
 
-# Status icons mapping
 STATUS_ICONS = {
     'success': '✅',
     'warning': '⚠️',
@@ -121,16 +116,13 @@ STATUS_ICONS = {
 }
 
 def get_category_style(category):
-    """Returns style information for a category"""
     return COLOR_SCHEME.get(category.lower(), COLOR_SCHEME['chat'])
 
 def get_category_emoji(category):
-    """Returns emoji for a category"""
     style = get_category_style(category)
     return style['emoji']
 
 def progress_bar(value, max_value, width=10, filled_char='█', empty_char='░'):
-    """Creates a text-based progress bar"""
     if max_value <= 0:
         return empty_char * width
         
@@ -144,7 +136,6 @@ def progress_bar(value, max_value, width=10, filled_char='█', empty_char='░'
     return f"{bar} {percentage}%"
 
 def credit_status_bar(credits, warning_threshold=20, critical_threshold=5, language="pl"):
-    """Creates a visual representation of credit status"""
     if credits <= critical_threshold:
         status = get_text("credit_status_critical", language, default="Extremely low credits!")
         emoji = "🔴"
@@ -161,7 +152,6 @@ def credit_status_bar(credits, warning_threshold=20, critical_threshold=5, langu
     return f"{emoji} {get_text('credit_status', language, default='Credit Status')}: {credits}\n{status}\n{bar}"
 
 def color_category_marker(category, text):
-    """Adds color category marker to message (compatible with old ui_elements)"""
     style = get_category_style(category)
     emoji = style['emoji']
     category_name = style['name']
@@ -169,29 +159,24 @@ def color_category_marker(category, text):
     return f"{emoji} *{category_name}*\n\n{text}"
 
 def style_message(message, category='chat'):
-    """Applies visual styling to message (compatible with visual_styles)"""
     return color_category_marker(category, message)
 
 def create_header(title, category='chat'):
-    """Creates styled header for a message"""
     style = get_category_style(category)
     emoji = style['emoji']
     
     return f"{emoji} *{title}*\n{'─' * (len(title) + 4)}\n"
 
 def section_divider(title=None):
-    """Creates section divider for long messages"""
     if title:
         return f"\n\n● *{title}* ●\n{'─' * (len(title) + 4)}\n"
     else:
         return "\n\n" + "─" * 20 + "\n\n"
 
 def create_section(title, content, category='chat'):
-    """Creates styled section with title and content"""
     return f"● *{title}* ●\n{content}\n"
 
 def info_card(title, content, category=None):
-    """Creates card-style information display"""
     emoji = get_category_emoji(category) if category else ""
     
     header = f"┌─── {emoji} *{title}* ───┐"
@@ -204,7 +189,6 @@ def info_card(title, content, category=None):
     return f"{header}\n{formatted_content}{footer}"
 
 def create_status_indicator(status, label=None):
-    """Creates status indicator based on status value"""
     icon = STATUS_ICONS.get(status.lower(), 'ℹ️')
     
     if label:
@@ -213,7 +197,6 @@ def create_status_indicator(status, label=None):
         return icon
 
 def cost_warning(cost, current_credits, operation_name, language="pl"):
-    """Creates warning message for credit costs"""
     remaining = current_credits - cost
     
     if cost > current_credits:
@@ -237,18 +220,15 @@ def cost_warning(cost, current_credits, operation_name, language="pl"):
     return f"{status}\n\n{operation_str}: {operation_name}\n*{cost_str}:* {cost} {credits_str}\n*{current_credits_str}:* {current_credits} {credits_str}\n\n{message}"
 
 def feature_badge(feature_name, is_premium=False, cost=None):
-    """Creates feature badge with optional premium indicator and cost"""
     premium_marker = "⭐ " if is_premium else ""
     cost_info = f" ({cost} kr.)" if cost is not None else ""
     
     return f"{premium_marker}{feature_name}{cost_info}"
 
 def animated_loading(step):
-    """Returns a frame of animated loading indicator"""
     frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
     return frames[step % len(frames)]
 
 def usage_tip(tip_text, language="pl"):
-    """Formats a usage tip"""
     tip_str = get_text("tip", language, default="Tip")
     return f"💡 *{tip_str}:* {tip_text}"
