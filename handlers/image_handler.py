@@ -9,8 +9,8 @@ from utils.openai_client import generate_image_dall_e
 from utils.ui_elements import info_card, section_divider, feature_badge, progress_bar
 from utils.visual_styles import style_message, create_header, create_section, create_status_indicator
 from utils.tips import get_random_tip, should_show_tip
-from utils.menu_manager import update_menu_message  # Dodany import
 from utils.credit_warnings import check_operation_cost, format_credit_usage_report
+from utils.menu_manager import update_menu_message  # Dodany import
 import asyncio
 
 async def generate_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -203,15 +203,71 @@ async def handle_image_confirmation(update: Update, context: ContextTypes.DEFAUL
             parse_mode=ParseMode.MARKDOWN
         )
         
-        # ... reszta funkcji bez zmian ...
+        # Get quality and cost
+        quality = "standard"
+        credit_cost = CREDIT_COSTS["image"][quality]
+        
+        # Check if the user still has enough credits
+        credits = get_user_credits(user_id)
+        if not check_user_credits(user_id, credit_cost):
+            await query.edit_message_text(
+                create_header("Brak wystarczających kredytów", "error") +
+                "W międzyczasie twój stan kredytów zmienił się i nie masz już wystarczającej liczby kredytów.",
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return
+        
+        # Generate image
+        image_url = await generate_image_dall_e(prompt)
+        
+        # Store credits before the operation for reporting
+        credits_before = credits
+        
+        # Deduct credits
+        deduct_user_credits(user_id, credit_cost, get_text("image_generation", language, default="Generowanie obrazu"))
+        
+        # Get credits after the operation
+        credits_after = get_user_credits(user_id)
+        
+        if image_url:
+            # Prepare a caption with usage report
+            caption = create_header("Wygenerowany obraz", "image")
+            caption += f"*Prompt:* {prompt}\n"
+            
+            # Add credit usage report
+            usage_report = format_credit_usage_report(
+                "Generowanie obrazu", 
+                credit_cost, 
+                credits_before, 
+                credits_after
+            )
+            caption += f"\n{usage_report}"
+            
+            # Delete the confirmation message
+            await query.message.delete()
+            
+            # Send the image
+            await context.bot.send_photo(
+                chat_id=query.message.chat_id,
+                photo=image_url,
+                caption=caption,
+                parse_mode=ParseMode.MARKDOWN
+            )
+        else:
+            # Update with error message
+            await query.edit_message_text(
+                create_header("Błąd generowania", "error") +
+                get_text("image_generation_error", language, default="Przepraszam, wystąpił błąd podczas generowania obrazu. Spróbuj ponownie z innym opisem."),
+                parse_mode=ParseMode.MARKDOWN
+            )
     
     elif query.data == "cancel_operation":
-        # User canceled the operation
-        # Użycie centralnego systemu menu
-        await update_menu_message(
-            query,
-            create_header("Operacja anulowana", "info") +
-            "Generowanie obrazu zostało anulowane.",
-            InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Menu główne", callback_data="menu_back_main")]]),
-            parse_mode=ParseMode.MARKDOWN
-        )
+            # User canceled the operation
+            # Użycie centralnego systemu menu
+            await update_menu_message(
+                query,
+                create_header("Operacja anulowana", "info") +
+                "Generowanie obrazu zostało anulowane.",
+                InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Menu główne", callback_data="menu_back_main")]]),
+                parse_mode=ParseMode.MARKDOWN
+            )

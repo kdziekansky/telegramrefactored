@@ -7,7 +7,6 @@ from utils.visual_styles import style_message, create_header, create_section, cr
 from utils.tips import get_random_tip, should_show_tip
 from utils.credit_warnings import get_low_credits_notification, get_credit_recommendation
 from config import BOT_NAME
-from utils.menu_manager import update_menu_message, store_menu_state  # Dodany import
 from utils.user_utils import get_user_language
 from utils.translations import get_text
 from database.credits_client import (
@@ -137,16 +136,28 @@ async def buy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_credit_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    Obsługuje wszystkie callbacki związane z menu
-    
-    Returns:
-        bool: True jeśli callback został obsłużony, False w przeciwnym razie
+    Handle buttons related to credits
     """
     query = update.callback_query
     user_id = query.from_user.id
     language = get_user_language(context, user_id)
     
     await query.answer()
+    
+    # Route to payment handler if it's a payment-related command
+    if query.data == "payment_command" or query.data.startswith("payment_method_") or \
+       query.data.startswith("buy_package_") or query.data == "subscription_command" or \
+       query.data.startswith("cancel_subscription_") or query.data.startswith("confirm_cancel_sub_") or \
+       query.data == "transactions_command":
+        try:
+            from handlers.payment_handler import handle_payment_callback
+            result = await handle_payment_callback(update, context)
+            if result:
+                return True
+        except Exception as e:
+            print(f"Error routing to payment handler: {e}")
+            import traceback
+            traceback.print_exc()
     
     # Handle credits check
     if query.data == "credits_check" or query.data == "menu_credits_check":
@@ -186,17 +197,38 @@ async def handle_credit_callback(update: Update, context: ContextTypes.DEFAULT_T
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        # Użycie centralnego systemu menu
-        await update_menu_message(
-            query,
-            message,
-            reply_markup,
-            parse_mode=ParseMode.MARKDOWN
-        )
-        
-        # Zapisz stan menu
-        store_menu_state(context, user_id, 'credits_check')
-        
+        # Update message
+        try:
+            # Check if message has caption (is a photo or other media type)
+            if hasattr(query.message, 'caption'):
+                await query.edit_message_caption(
+                    caption=message,
+                    reply_markup=reply_markup,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+            else:
+                await query.edit_message_text(
+                    text=message,
+                    reply_markup=reply_markup,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+        except Exception as e:
+            print(f"Error updating message: {e}")
+            # Try without markdown formatting
+            try:
+                plain_message = message.replace("*", "")
+                if hasattr(query.message, 'caption'):
+                    await query.edit_message_caption(
+                        caption=plain_message,
+                        reply_markup=reply_markup
+                    )
+                else:
+                    await query.edit_message_text(
+                        text=plain_message,
+                        reply_markup=reply_markup
+                    )
+            except Exception as e2:
+                print(f"Second error updating message: {e2}")
         return True
     
     # Handle credit purchase options - ZMODYFIKOWANE

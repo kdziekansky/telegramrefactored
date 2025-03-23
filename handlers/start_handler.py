@@ -3,11 +3,10 @@ from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
 from config import BOT_NAME, AVAILABLE_LANGUAGES
 from utils.translations import get_text
-from database.supabase_client import get_or_create_user
+from database.supabase_client import get_or_create_user, get_message_status
+from database.credits_client import get_user_credits
 from utils.user_utils import get_user_language
-
-# Import centralnego systemu menu
-from utils.menu_manager import store_menu_state, update_menu_message, create_new_menu_message
+from utils.menu_utils import update_menu
 
 # Zabezpieczony import z awaryjnym fallbackiem
 try:
@@ -58,7 +57,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Sprawdź też w bazie danych, czy użytkownik ma już ustawiony język
         has_language_in_db = False
         try:
-            from database.supabase_client import supabase
             response = supabase.table('users').select('language').eq('id', user_id).execute()
             if response.data and response.data[0].get('language'):
                 has_language_in_db = True
@@ -173,35 +171,43 @@ async def handle_language_selection(update: Update, context: ContextTypes.DEFAUL
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        # Używamy centralnej funkcji update_menu_message
+        # Użyj centralnej implementacji update_menu
+        from utils.menu_utils import update_menu
         try:
-            # Aktualizujemy wiadomość
-            result = await update_menu_message(
-                query,
-                welcome_text,
-                reply_markup,
-                parse_mode=ParseMode.MARKDOWN
-            )
-            
-            # Zapisz stan menu
-            store_menu_state(context, user_id, 'main', query.message.message_id)
+            # Bezpośrednio aktualizujemy wiadomość, aby uniknąć problemów z update_menu
+            if hasattr(query.message, 'caption'):
+                await query.edit_message_caption(
+                    caption=welcome_text,
+                    reply_markup=reply_markup
+                )
+            else:
+                await query.edit_message_text(
+                    text=welcome_text,
+                    reply_markup=reply_markup
+                )
+                
+            # Zapisz stan menu poprawnie - używamy bezpośrednio menu_state
+            from utils.menu_utils import menu_state
+            menu_state.set_state(user_id, 'main')
+            menu_state.set_message_id(user_id, query.message.message_id)
+            menu_state.save_to_context(context, user_id)
             
             print(f"Menu główne wyświetlone poprawnie dla użytkownika {user_id}")
         except Exception as e:
             print(f"Błąd przy aktualizacji wiadomości: {e}")
             # Jeśli nie możemy edytować, to spróbujmy wysłać nową wiadomość
             try:
-                message = await create_new_menu_message(
-                    context,
-                    query.message.chat_id,
-                    welcome_text,
-                    reply_markup,
-                    parse_mode=ParseMode.MARKDOWN
+                message = await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=welcome_text,
+                    reply_markup=reply_markup
                 )
                 
                 # Zapisz stan menu
-                if message:
-                    store_menu_state(context, user_id, 'main', message.message_id)
+                from utils.menu_utils import menu_state
+                menu_state.set_state(user_id, 'main')
+                menu_state.set_message_id(user_id, message.message_id)
+                menu_state.save_to_context(context, user_id)
                 
                 print(f"Wysłano nową wiadomość menu dla użytkownika {user_id}")
             except Exception as e2:
@@ -235,6 +241,9 @@ async def show_welcome_message(update: Update, context: ContextTypes.DEFAULT_TYP
         
         context.chat_data['user_data'][user_id]['language'] = language
         
+        # Pobierz stan kredytów
+        credits = get_user_credits(user_id)
+        
         # Link do zdjęcia bannera
         banner_url = "https://i.imgur.com/YPubLDE.png?v-1123"
         
@@ -266,7 +275,8 @@ async def show_welcome_message(update: Update, context: ContextTypes.DEFAULT_TYP
             reply_markup=reply_markup
         )
         
-        # Zapisz ID wiadomości menu i stan menu używając centralnej funkcji
+        # Zapisz ID wiadomości menu i stan menu
+        from handlers.menu_handler import store_menu_state
         store_menu_state(context, user_id, 'main', message.message_id)
         
         return message

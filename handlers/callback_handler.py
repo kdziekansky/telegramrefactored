@@ -1,8 +1,10 @@
+# handlers/callback_handler.py
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode, ChatAction
 from config import CREDIT_COSTS, DEFAULT_MODEL, CHAT_MODES
 from utils.translations import get_text
+from utils.menu_manager import update_menu_message, store_menu_state  # Dodany import
 from utils.user_utils import get_user_language, is_chat_initialized, mark_chat_initialized
 from database.supabase_client import (
     get_active_conversation, save_message, get_conversation_history, increment_messages_used
@@ -11,7 +13,6 @@ from database.credits_client import get_user_credits, check_user_credits, deduct
 from utils.openai_client import analyze_image, analyze_document
 from utils.visual_styles import create_header, create_status_indicator
 from utils.credit_warnings import check_operation_cost, format_credit_usage_report
-from utils.menu_manager import update_menu_message, store_menu_state  # Dodane importy
 
 async def handle_buy_credits(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Obsługuje przycisk zakupu kredytów"""

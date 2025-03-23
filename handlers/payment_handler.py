@@ -226,8 +226,12 @@ async def handle_payment_callback(update: Update, context: ContextTypes.DEFAULT_
         payment_methods = get_available_payment_methods(language)
         
         if not payment_methods:
-            await query.edit_message_text(
-                get_text("payment_methods_unavailable", language, default="Obecnie brak dostępnych metod płatności. Spróbuj ponownie później.")
+            # Użycie centralnego systemu menu
+            await update_menu_message(
+                query,
+                get_text("payment_methods_unavailable", language, default="Obecnie brak dostępnych metod płatności. Spróbuj ponownie później."),
+                InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Powrót", callback_data="payment_back_to_credits")]]),
+                parse_mode=ParseMode.MARKDOWN
             )
             return True
         
@@ -251,11 +255,17 @@ async def handle_payment_callback(update: Update, context: ContextTypes.DEFAULT_
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        await query.edit_message_text(
+        # Użycie centralnego systemu menu
+        await update_menu_message(
+            query,
             get_text("select_payment_method", language, default="Wybierz metodę płatności:"),
-            reply_markup=reply_markup,
+            reply_markup,
             parse_mode=ParseMode.MARKDOWN
         )
+        
+        # Zapisz stan menu
+        store_menu_state(context, user_id, 'payment_methods')
+        
         return True
     
     # Obsługa wyboru metody płatności
@@ -268,8 +278,11 @@ async def handle_payment_callback(update: Update, context: ContextTypes.DEFAULT_
         # Pobierz pakiety kredytów
         packages = get_credit_packages()
         if not packages:
-            await query.edit_message_text(
+            # Użycie centralnego systemu menu
+            await update_menu_message(
+                query,
                 get_text("packages_unavailable", language, default="Aktualnie brak dostępnych pakietów kredytów. Spróbuj ponownie później."),
+                InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Powrót", callback_data="payment_command")]]),
                 parse_mode=ParseMode.MARKDOWN
             )
             return True
@@ -290,11 +303,11 @@ async def handle_payment_callback(update: Update, context: ContextTypes.DEFAULT_
                 )
             ])
         
-        # Dodaj przycisk powrotu - zmieniony na inny callback
+        # Dodaj przycisk powrotu
         keyboard.append([
             InlineKeyboardButton(
                 get_text("back", language, default="Powrót"),
-                callback_data="payment_back_to_credits"  # Zmieniony callback
+                callback_data="payment_command"
             )
         ])
         
@@ -311,11 +324,17 @@ async def handle_payment_callback(update: Update, context: ContextTypes.DEFAULT_
             message = get_text("payment_package_selection", language, 
                               default="Wybierz pakiet kredytów, który chcesz zakupić:")
         
-        await query.edit_message_text(
+        # Użycie centralnego systemu menu
+        await update_menu_message(
+            query,
             message,
-            reply_markup=reply_markup,
+            reply_markup,
             parse_mode=ParseMode.MARKDOWN
         )
+        
+        # Zapisz stan menu
+        store_menu_state(context, user_id, f'payment_method_{payment_method_code}')
+        
         return True
     
     # Obsługa wyboru pakietu z określoną metodą płatności
@@ -346,7 +365,7 @@ async def handle_payment_callback(update: Update, context: ContextTypes.DEFAULT_
                 keyboard.append([
                     InlineKeyboardButton(
                         get_text("back", language),
-                        callback_data="payment_back_to_credits"
+                        callback_data=f"payment_method_{payment_method_code}"
                     )
                 ])
                 
@@ -363,15 +382,24 @@ async def handle_payment_callback(update: Update, context: ContextTypes.DEFAULT_
                     message = get_text("payment_instructions", language, 
                                       default="Kliknij przycisk poniżej, aby przejść do płatności. Po zakończeniu transakcji kredyty zostaną automatycznie dodane do Twojego konta.")
                 
-                await query.edit_message_text(
+                # Użycie centralnego systemu menu
+                await update_menu_message(
+                    query,
                     message,
-                    reply_markup=reply_markup,
+                    reply_markup,
                     parse_mode=ParseMode.MARKDOWN
                 )
+                
+                # Zapisz stan menu
+                store_menu_state(context, user_id, f'payment_url_{payment_method_code}_{package_id}')
+                
             else:
                 # Wyświetl błąd, jeśli nie udało się utworzyć URL płatności
-                await query.edit_message_text(
+                # Użycie centralnego systemu menu
+                await update_menu_message(
+                    query,
                     get_text("payment_creation_error", language, default="Wystąpił błąd podczas tworzenia płatności. Spróbuj ponownie później."),
+                    InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Powrót", callback_data=f"payment_method_{payment_method_code}")]]),
                     parse_mode=ParseMode.MARKDOWN
                 )
             return True
@@ -382,8 +410,12 @@ async def handle_payment_callback(update: Update, context: ContextTypes.DEFAULT_
         subscriptions = get_user_subscriptions(user_id)
         
         if not subscriptions:
-            await query.edit_message_text(
-                get_text("no_active_subscriptions", language, default="Nie masz aktywnych subskrypcji.")
+            # Użycie centralnego systemu menu
+            await update_menu_message(
+                query,
+                get_text("no_active_subscriptions", language, default="Nie masz aktywnych subskrypcji."),
+                InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Powrót", callback_data="payment_back_to_credits")]]),
+                parse_mode=ParseMode.MARKDOWN
             )
             return True
         
@@ -423,11 +455,17 @@ async def handle_payment_callback(update: Update, context: ContextTypes.DEFAULT_
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        await query.edit_message_text(
+        # Użycie centralnego systemu menu
+        await update_menu_message(
+            query,
             message,
-            reply_markup=reply_markup,
+            reply_markup,
             parse_mode=ParseMode.MARKDOWN
         )
+        
+        # Zapisz stan menu
+        store_menu_state(context, user_id, 'subscriptions')
+        
         return True
     
     # Obsługa anulowania subskrypcji
@@ -450,11 +488,17 @@ async def handle_payment_callback(update: Update, context: ContextTypes.DEFAULT_
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        await query.edit_message_text(
+        # Użycie centralnego systemu menu
+        await update_menu_message(
+            query,
             get_text("cancel_subscription_confirm", language, default="Czy na pewno chcesz anulować tę subskrypcję? Nie zostaniesz już obciążony opłatą w kolejnym miesiącu, ale bieżący okres rozliczeniowy pozostanie aktywny."),
-            reply_markup=reply_markup,
+            reply_markup,
             parse_mode=ParseMode.MARKDOWN
         )
+        
+        # Zapisz stan menu
+        store_menu_state(context, user_id, f'cancel_subscription_{subscription_id}')
+        
         return True
     
     # Obsługa potwierdzenia anulowania subskrypcji
@@ -465,13 +509,19 @@ async def handle_payment_callback(update: Update, context: ContextTypes.DEFAULT_
         success = cancel_subscription(subscription_id)
         
         if success:
-            await query.edit_message_text(
+            # Użycie centralnego systemu menu
+            await update_menu_message(
+                query,
                 get_text("subscription_cancelled", language, default="✅ Subskrypcja została anulowana. Nie będzie już automatycznie odnawiana."),
+                InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Powrót", callback_data="subscription_command")]]),
                 parse_mode=ParseMode.MARKDOWN
             )
         else:
-            await query.edit_message_text(
+            # Użycie centralnego systemu menu
+            await update_menu_message(
+                query,
                 get_text("subscription_cancel_error", language, default="❌ Wystąpił błąd podczas anulowania subskrypcji. Spróbuj ponownie później."),
+                InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Powrót", callback_data="subscription_command")]]),
                 parse_mode=ParseMode.MARKDOWN
             )
         return True
@@ -482,8 +532,11 @@ async def handle_payment_callback(update: Update, context: ContextTypes.DEFAULT_
         transactions = get_payment_transactions(user_id)
         
         if not transactions:
-            await query.edit_message_text(
+            # Użycie centralnego systemu menu
+            await update_menu_message(
+                query,
                 get_text("no_payment_transactions", language, default="Nie masz żadnych transakcji płatności."),
+                InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Powrót", callback_data="payment_back_to_credits")]]),
                 parse_mode=ParseMode.MARKDOWN
             )
             return True
@@ -515,11 +568,17 @@ async def handle_payment_callback(update: Update, context: ContextTypes.DEFAULT_
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        await query.edit_message_text(
+        # Użycie centralnego systemu menu
+        await update_menu_message(
+            query,
             message,
-            reply_markup=reply_markup,
+            reply_markup,
             parse_mode=ParseMode.MARKDOWN
         )
+        
+        # Zapisz stan menu
+        store_menu_state(context, user_id, 'transactions')
+        
         return True
     
     return False  # Jeśli callback nie został obsłużony
@@ -559,12 +618,12 @@ async def transactions_command(update: Update, context: ContextTypes.DEFAULT_TYP
         message += f"   {get_text('status', language, default='Status')}: {status_text}, {get_text('date', language, default='Data')}: {date}\n\n"
     
     # Dodaj przycisk powrotu
-    keyboard.append([
+    keyboard = [[
         InlineKeyboardButton(
             get_text("back", language), 
             callback_data="payment_back_to_credits"
         )
-    ])
+    ]]
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
