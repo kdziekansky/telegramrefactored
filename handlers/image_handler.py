@@ -6,11 +6,10 @@ from utils.translations import get_text
 from handlers.menu_handler import get_user_language
 from database.credits_client import check_user_credits, deduct_user_credits, get_user_credits
 from utils.openai_client import generate_image_dall_e
-from utils.ui_elements import info_card, section_divider, feature_badge, progress_bar
-from utils.visual_styles import style_message, create_header, create_section, create_status_indicator
-from utils.tips import get_random_tip, should_show_tip
+from utils.visual_styles import create_header, create_status_indicator
 from utils.credit_warnings import check_operation_cost, format_credit_usage_report
-from utils.menu_manager import update_menu_message  # Dodany import
+from utils.tips import get_random_tip, should_show_tip
+from utils.menu import update_menu  # Poprawiony import
 import asyncio
 
 async def generate_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -72,7 +71,7 @@ async def generate_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Add a random tip about image generation
         if should_show_tip(user_id, context):
             tip = get_random_tip('image')
-            usage_message += f"\n\n{section_divider('Porada')}\n💡 *Porada:* {tip}"
+            usage_message += f"\n\n💡 *Porada:* {tip}"
         
         await update.message.reply_text(
             usage_message,
@@ -195,7 +194,7 @@ async def handle_image_confirmation(update: Update, context: ContextTypes.DEFAUL
         prompt = query.data[14:].replace('_', ' ')
         
         # Użycie centralnego systemu menu
-        await update_menu_message(
+        await update_menu(
             query,
             create_status_indicator('loading', "Generowanie obrazu") + "\n\n" +
             f"*Prompt:* {prompt}",
@@ -210,9 +209,11 @@ async def handle_image_confirmation(update: Update, context: ContextTypes.DEFAUL
         # Check if the user still has enough credits
         credits = get_user_credits(user_id)
         if not check_user_credits(user_id, credit_cost):
-            await query.edit_message_text(
+            await update_menu(
+                query,
                 create_header("Brak wystarczających kredytów", "error") +
                 "W międzyczasie twój stan kredytów zmienił się i nie masz już wystarczającej liczby kredytów.",
+                InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Powrót", callback_data="menu_back_main")]]),
                 parse_mode=ParseMode.MARKDOWN
             )
             return
@@ -255,19 +256,20 @@ async def handle_image_confirmation(update: Update, context: ContextTypes.DEFAUL
             )
         else:
             # Update with error message
-            await query.edit_message_text(
+            await update_menu(
+                query,
                 create_header("Błąd generowania", "error") +
                 get_text("image_generation_error", language, default="Przepraszam, wystąpił błąd podczas generowania obrazu. Spróbuj ponownie z innym opisem."),
+                InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Powrót", callback_data="menu_back_main")]]),
                 parse_mode=ParseMode.MARKDOWN
             )
     
     elif query.data == "cancel_operation":
-            # User canceled the operation
-            # Użycie centralnego systemu menu
-            await update_menu_message(
-                query,
-                create_header("Operacja anulowana", "info") +
-                "Generowanie obrazu zostało anulowane.",
-                InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Menu główne", callback_data="menu_back_main")]]),
-                parse_mode=ParseMode.MARKDOWN
-            )
+        # User canceled the operation
+        await update_menu(
+            query,
+            create_header("Operacja anulowana", "info") +
+            "Generowanie obrazu zostało anulowane.",
+            InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Menu główne", callback_data="menu_back_main")]]),
+            parse_mode=ParseMode.MARKDOWN
+        )

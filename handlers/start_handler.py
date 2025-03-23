@@ -6,7 +6,7 @@ from utils.translations import get_text
 from database.supabase_client import get_or_create_user, get_message_status
 from database.credits_client import get_user_credits
 from utils.user_utils import get_user_language
-from utils.menu_utils import update_menu
+from utils.menu import update_menu
 
 # Zabezpieczony import z awaryjnym fallbackiem
 try:
