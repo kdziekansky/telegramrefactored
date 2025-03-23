@@ -55,6 +55,7 @@ from handlers.callback_handler import handle_callback_query, handle_buy_credits,
 from handlers.basic_commands import restart_command, check_status, new_chat
 from handlers.message_handler import message_handler
 from handlers.file_handler import handle_document, handle_photo
+from handlers.callback_router import route_callback
 
 # Wrapper function for mode selection
 async def handle_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -97,22 +98,7 @@ application.add_handler(CommandHandler("adddefaultpackages", add_default_package
 application.add_handler(CommandHandler("gencode", admin_generate_code))
 application.add_handler(CommandHandler("userinfo", get_user_info))
 
-# Rejestracja handlerów callbacków
-application.add_handler(CallbackQueryHandler(handle_buy_credits, pattern="^Kup$"))
-application.add_handler(CallbackQueryHandler(handle_buy_credits, pattern="^menu_credits_buy$"))
-application.add_handler(CallbackQueryHandler(handle_language_selection, pattern="^start_lang_"))
-application.add_handler(CallbackQueryHandler(handle_menu_callback, pattern="^menu_"))
-application.add_handler(CallbackQueryHandler(handle_credit_callback, pattern="^(credits_|menu_credits_|buy_)"))
-application.add_handler(CallbackQueryHandler(handle_payment_callback, pattern="^(payment_|buy_package_)"))
-application.add_handler(CallbackQueryHandler(handle_onboarding_callback, pattern="^onboarding_"))
-application.add_handler(CallbackQueryHandler(handle_image_confirmation, pattern="^confirm_image_"))
-application.add_handler(CallbackQueryHandler(handle_document_confirmation, pattern="^confirm_doc_"))
-application.add_handler(CallbackQueryHandler(handle_photo_confirmation, pattern="^confirm_photo_"))
-application.add_handler(CallbackQueryHandler(handle_message_confirmation, pattern="^confirm_message$|^cancel_operation$"))
-application.add_handler(CallbackQueryHandler(handle_callback_query))
-application.add_handler(CommandHandler("models", models_command))
-application.add_handler(CallbackQueryHandler(handle_mode_callback, pattern="^mode_"))
-application.add_handler(CallbackQueryHandler(handle_model_selection, pattern="^settings_model$"))
+application.add_handler(CallbackQueryHandler(route_callback))
 
 # Handler wiadomości tekstowych
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))

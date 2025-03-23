@@ -135,37 +135,20 @@ async def buy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def handle_credit_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Handle buttons related to credits
-    """
+    """Obsługuje callbacki związane z kredytami"""
     query = update.callback_query
     user_id = query.from_user.id
     language = get_user_language(context, user_id)
     
     await query.answer()
     
-    # Route to payment handler if it's a payment-related command
-    if query.data == "payment_command" or query.data.startswith("payment_method_") or \
-       query.data.startswith("buy_package_") or query.data == "subscription_command" or \
-       query.data.startswith("cancel_subscription_") or query.data.startswith("confirm_cancel_sub_") or \
-       query.data == "transactions_command":
-        try:
-            from handlers.payment_handler import handle_payment_callback
-            result = await handle_payment_callback(update, context)
-            if result:
-                return True
-        except Exception as e:
-            print(f"Error routing to payment handler: {e}")
-            import traceback
-            traceback.print_exc()
-    
-    # Handle credits check
+    # Obsługa sprawdzania kredytów
     if query.data == "credits_check" or query.data == "menu_credits_check":
-        # Get current credit data
+        # Pobierz dane o kredytach
         credits = get_user_credits(user_id)
         credit_stats = get_user_credit_stats(user_id)
         
-        # Prepare message text
+        # Przygotuj tekst wiadomości
         message = f"""
 *{get_text('credits_management', language)}*
 

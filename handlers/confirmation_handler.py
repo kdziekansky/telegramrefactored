@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
 from utils.visual_styles import create_header, create_status_indicator
 from utils.user_utils import get_user_language
+from utils.menu import update_menu
 from utils.translations import get_text
 from utils.credit_warnings import format_credit_usage_report
 from utils.tips import get_random_tip, should_show_tip, get_contextual_tip
@@ -13,9 +14,7 @@ from config import CREDIT_COSTS, MAX_CONTEXT_MESSAGES, CHAT_MODES
 import datetime
 
 async def handle_image_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Handles confirmation of image generation when cost warning was shown
-    """
+    """Obsługuje potwierdzenie generowania obrazu"""
     query = update.callback_query
     user_id = query.from_user.id
     language = get_user_language(context, user_id)
@@ -23,19 +22,17 @@ async def handle_image_confirmation(update: Update, context: ContextTypes.DEFAUL
     await query.answer()
     
     if query.data.startswith("confirm_image_"):
-        # Extract prompt from callback data
+        # Wyciągnij prompt z callbacku
         prompt = query.data[14:].replace('_', ' ')
         
-        # Inform the user that image generation has started
-        await query.edit_message_text(
+        # Wyświetl status ładowania
+        await update_menu(
+            query,
             create_status_indicator('loading', "Generowanie obrazu") + "\n\n" +
             f"*Prompt:* {prompt}",
+            None,  # Brak przycisków podczas ładowania
             parse_mode=ParseMode.MARKDOWN
         )
-        
-        # Get quality and cost
-        quality = "standard"
-        credit_cost = CREDIT_COSTS["image"][quality]
         
         # Check if the user still has enough credits
         credits = get_user_credits(user_id)
