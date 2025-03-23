@@ -46,14 +46,36 @@ async def handle_unknown_callback(update: Update, context: ContextTypes.DEFAULT_
     
     # Informacja dla użytkownika
     try:
-        await query.edit_message_text(
-            f"Funkcja '{query.data}' jest w trakcie implementacji.\n\nWróć do menu głównego i spróbuj innej opcji.",
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("⬅️ Powrót do menu", callback_data="menu_back_main")
-            ]])
-        )
+        message_text = f"Funkcja '{query.data}' jest w trakcie implementacji.\n\nWróć do menu głównego i spróbuj innej opcji."
+        keyboard = [[InlineKeyboardButton("⬅️ Powrót do menu", callback_data="menu_back_main")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        # Sprawdź, czy wiadomość ma podpis (caption) czy tekst
+        if hasattr(query.message, 'caption') and query.message.caption is not None:
+            # Wiadomość ma podpis (np. zdjęcie)
+            await query.edit_message_caption(
+                caption=message_text,
+                reply_markup=reply_markup
+            )
+        else:
+            # Zwykła wiadomość tekstowa
+            await query.edit_message_text(
+                text=message_text,
+                reply_markup=reply_markup
+            )
     except Exception as e:
         print(f"Błąd przy edycji wiadomości: {e}")
+        # W przypadku błędu, próbujemy wysłać nową wiadomość
+        try:
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=f"Funkcja '{query.data}' jest w trakcie implementacji.\n\nWróć do menu głównego i spróbuj innej opcji.",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("⬅️ Powrót do menu", callback_data="menu_back_main")
+                ]])
+            )
+        except Exception as e2:
+            print(f"Drugi błąd przy wysyłaniu wiadomości: {e2}")
 
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Obsługa zapytań zwrotnych (z przycisków)"""
@@ -127,6 +149,42 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 import traceback
                 traceback.print_exc()
 
+    # Obsługa wyboru modelu
+    elif query.data == "settings_model":
+        try:
+            # Wyślij nową wiadomość z wyborem modelu
+            message_text = "Wybierz model AI, którego chcesz używać:"
+            
+            # Tworzymy klawiaturę z dostępnymi modelami
+            keyboard = []
+            from config import AVAILABLE_MODELS, CREDIT_COSTS
+            
+            for model_id, model_name in AVAILABLE_MODELS.items():
+                # Dodaj informację o koszcie kredytów
+                credit_cost = CREDIT_COSTS["message"].get(model_id, CREDIT_COSTS["message"]["default"])
+                keyboard.append([
+                    InlineKeyboardButton(
+                        text=f"{model_name} ({credit_cost} kredytów/wiadomość)", 
+                        callback_data=f"model_{model_id}"
+                    )
+                ])
+            
+            # Dodaj przycisk powrotu
+            keyboard.append([
+                InlineKeyboardButton("⬅️ Powrót", callback_data="menu_section_settings")
+            ])
+            
+            # Wyślij nową wiadomość zamiast edytować
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=message_text,
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            return True
+        except Exception as e:
+            print(f"Błąd przy obsłudze wyboru modelu: {e}")
+            return False
+        
     # Specjalna obsługa dla settings_language
     if query.data == "settings_language":
         keyboard = []
@@ -343,13 +401,27 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             print(f"Błąd przy analizie dokumentu: {e}")
             await message.edit_text("Wystąpił błąd podczas analizy dokumentu. Spróbuj ponownie.")
     
-    # Fallback dla nieobsłużonych callbacków
+     # Jeśli dotarliśmy tutaj, oznacza to, że callback nie został obsłużony
     print(f"Nieobsłużony callback: {query.data}")
+    
+    # Zamiast próbować edytować istniejącą wiadomość, po prostu wysyłamy nową
     try:
         keyboard = [[InlineKeyboardButton("⬅️ Menu główne", callback_data="menu_back_main")]]
-        await query.edit_message_text(
-            f"Nieznany przycisk. Spróbuj ponownie później.",
+        
+        # Wyślij nową wiadomość zamiast edytować istniejącą
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=f"Nieznany przycisk '{query.data}'. Spróbuj ponownie później.",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
+        
+        # Spróbujmy odpowiedzieć na callback, aby usunąć oczekiwanie
+        try:
+            await query.answer("Funkcja w przygotowaniu")
+        except:
+            pass
+            
+        return True
     except Exception as e:
-        print(f"Błąd przy wyświetlaniu komunikatu o nieobsłużonym callbacku: {e}")
+        print(f"Błąd przy obsłudze nieobsłużonego callbacku: {e}")
+        return False

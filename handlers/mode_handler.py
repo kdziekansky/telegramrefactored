@@ -86,42 +86,6 @@ async def show_modes(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup
         )
 
-async def models_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Wyświetla dostępne modele AI i pozwala użytkownikowi wybrać jeden z nich
-    Użycie: /models
-    """
-    user_id = update.effective_user.id
-    language = get_user_language(context, user_id)
-    
-    message_text = f"*{get_text('main_menu', language, default='Menu główne')} > {get_text('settings_choose_model', language, default='Wybór modelu')}*\n\n"
-    message_text += get_text("settings_choose_model", language, default="Wybierz model AI, którego chcesz używać:")
-    
-    # Stwórz przyciski dla dostępnych modeli
-    keyboard = []
-    for model_id, model_name in AVAILABLE_MODELS.items():
-        # Dodaj informację o koszcie kredytów
-        credit_cost = CREDIT_COSTS["message"].get(model_id, CREDIT_COSTS["message"]["default"])
-        keyboard.append([
-            InlineKeyboardButton(
-                text=f"{model_name} ({credit_cost} {get_text('credits_per_message', language, default='kredytów/wiadomość')})", 
-                callback_data=f"model_{model_id}"
-            )
-        ])
-    
-    # Dodaj przycisk powrotu
-    keyboard.append([
-        InlineKeyboardButton(get_text("back", language, default="Powrót"), callback_data="menu_section_settings")
-    ])
-    
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text(
-        message_text,
-        reply_markup=reply_markup,
-        parse_mode=ParseMode.MARKDOWN
-    )
-
 async def handle_mode_selection(update: Update, context: ContextTypes.DEFAULT_TYPE, mode_id=None):
     """Obsługuje wybór trybu czatu z ulepszoną wizualizacją"""
     if isinstance(update, Update) and update.callback_query:

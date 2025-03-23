@@ -6,6 +6,10 @@ from utils.translations import get_text
 
 logger = logging.getLogger(__name__)
 
+# Dodatkowo warto poprawić funkcję update_menu w pliku utils/menu_utils.py
+# Ta funkcja jest często używana w wielu miejscach, więc jej poprawa rozwiąże wiele problemów jednocześnie.
+# Zastąp całą funkcję update_menu poniższym kodem:
+
 async def update_menu(query, text, keyboard, parse_mode=None):
     """
     Ulepszona funkcja do aktualizacji wiadomości menu

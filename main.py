@@ -44,6 +44,7 @@ from handlers.payment_handler import payment_command, subscription_command, hand
 from handlers.admin_handler import get_user_info
 from handlers.admin_package_handler import add_package, list_packages, toggle_package, add_default_packages
 from handlers.menu_handler import models_command
+from handlers.menu_handler import handle_model_selection
 
 # Import nowych handlerów
 from handlers.onboarding_handler import onboarding_command, handle_onboarding_callback, get_onboarding_image_url
@@ -114,6 +115,7 @@ application.add_handler(CallbackQueryHandler(handle_message_confirmation, patter
 application.add_handler(CallbackQueryHandler(handle_callback_query))
 application.add_handler(CommandHandler("models", models_command))
 application.add_handler(CallbackQueryHandler(handle_mode_selection, pattern="^mode_"))
+application.add_handler(CallbackQueryHandler(handle_model_selection, pattern="^settings_model$"))
 
 # Handler wiadomości tekstowych
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
