@@ -1,5 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
+from utils.menu_manager import update_menu_message, store_menu_state  # Dodany import
 from telegram.constants import ParseMode
 from database.credits_client import (
     get_user_credits, get_credit_packages
@@ -164,12 +165,17 @@ async def handle_payment_callback(update: Update, context: ContextTypes.DEFAULT_
             message += f"▪️ Analiza dokumentu: 5 kredytów\n"
             message += f"▪️ Analiza zdjęcia: 8 kredytów\n\n"
             
-            # Aktualizuj wiadomość
-            await query.edit_message_text(
-                text=message,
-                parse_mode=ParseMode.MARKDOWN,
-                reply_markup=reply_markup
+            # Użycie centralnego systemu menu
+            await update_menu_message(
+                query,
+                message,
+                reply_markup,
+                parse_mode=ParseMode.MARKDOWN
             )
+            
+            # Zapisz stan menu
+            store_menu_state(context, user_id, 'credits')
+            
             return True
         except Exception as e:
             print(f"Error returning to credits menu: {e}")

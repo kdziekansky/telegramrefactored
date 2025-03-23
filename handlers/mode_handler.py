@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
 from config import CHAT_MODES, AVAILABLE_MODELS, DEFAULT_MODEL
 from utils.translations import get_text
+from utils.menu_manager import update_menu_message, store_menu_state  # Dodany import
 from database.credits_client import get_user_credits
 from utils.user_utils import mark_chat_initialized
 from database.supabase_client import create_new_conversation
@@ -110,16 +111,17 @@ async def handle_mode_selection(update: Update, context: ContextTypes.DEFAULT_TY
             try:
                 await query.answer(get_text("mode_not_available", language, default="Wybrany tryb nie jest dostępny."))
                 
-                if hasattr(query.message, 'caption'):
-                    await query.edit_message_caption(
-                        caption=get_text("mode_not_available", language, default="Wybrany tryb nie jest dostępny."),
-                        parse_mode=ParseMode.MARKDOWN
-                    )
-                else:
-                    await query.edit_message_text(
-                        text=get_text("mode_not_available", language, default="Wybrany tryb nie jest dostępny."),
-                        parse_mode=ParseMode.MARKDOWN
-                    )
+                # Użycie centralnego systemu menu
+                message = get_text("mode_not_available", language, default="Wybrany tryb nie jest dostępny.")
+                keyboard = [[InlineKeyboardButton("⬅️ Powrót", callback_data="menu_section_chat_modes")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await update_menu_message(
+                    query,
+                    message,
+                    reply_markup,
+                    parse_mode=ParseMode.MARKDOWN
+                )
             except Exception as e:
                 print(f"Błąd przy edycji wiadomości: {e}")
         return
@@ -169,39 +171,19 @@ async def handle_mode_selection(update: Update, context: ContextTypes.DEFAULT_TY
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         if isinstance(update, Update) and update.callback_query:
-            # Aktualizuj wiadomość, jeśli mamy callback_query
-            if hasattr(query.message, 'caption') and query.message.caption is not None:
-                try:
-                    await query.edit_message_caption(
-                        caption=message_text,
-                        parse_mode=ParseMode.MARKDOWN,
-                        reply_markup=reply_markup
-                    )
-                except Exception as e:
-                    print(f"Błąd przy edycji caption: {e}")
-                    # Fallback do wysłania nowej wiadomości
-                    await context.bot.send_message(
-                        chat_id=query.message.chat_id,
-                        text=message_text,
-                        parse_mode=ParseMode.MARKDOWN,
-                        reply_markup=reply_markup
-                    )
-            else:
-                try:
-                    await query.edit_message_text(
-                        text=message_text,
-                        parse_mode=ParseMode.MARKDOWN,
-                        reply_markup=reply_markup
-                    )
-                except Exception as e:
-                    print(f"Błąd przy edycji text: {e}")
-                    # Fallback do wysłania nowej wiadomości
-                    await context.bot.send_message(
-                        chat_id=query.message.chat_id,
-                        text=message_text,
-                        parse_mode=ParseMode.MARKDOWN,
-                        reply_markup=reply_markup
-                    )
+            try:
+                # Użycie centralnego systemu menu
+                await update_menu_message(
+                    query,
+                    message_text,
+                    reply_markup,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                
+                # Zapisz stan menu
+                store_menu_state(context, user_id, f'mode_{mode_id}')
+            except Exception as e:
+                print(f"Błąd przy aktualizacji menu: {e}")
         else:
             # Wyślij nową wiadomość, jeśli nie mamy callback_query
             await update.message.reply_text(

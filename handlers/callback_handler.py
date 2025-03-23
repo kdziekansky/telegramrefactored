@@ -1,13 +1,17 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from telegram.constants import ParseMode
-from utils.ui_elements import credit_status_bar, info_card, section_divider
-from utils.user_utils import get_user_language, mark_chat_initialized
+from telegram.constants import ParseMode, ChatAction
+from config import CREDIT_COSTS, DEFAULT_MODEL, CHAT_MODES
 from utils.translations import get_text
-from database.supabase_client import create_new_conversation, get_active_conversation
-from database.credits_client import get_user_credits, get_credit_packages
-from config import BOT_NAME
-from config import BOT_NAME, AVAILABLE_LANGUAGES
+from utils.user_utils import get_user_language, is_chat_initialized, mark_chat_initialized
+from database.supabase_client import (
+    get_active_conversation, save_message, get_conversation_history, increment_messages_used
+)
+from database.credits_client import get_user_credits, check_user_credits, deduct_user_credits
+from utils.openai_client import analyze_image, analyze_document
+from utils.visual_styles import create_header, create_status_indicator
+from utils.credit_warnings import check_operation_cost, format_credit_usage_report
+from utils.menu_manager import update_menu_message, store_menu_state  # Dodane importy
 
 async def handle_buy_credits(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Obsługuje przycisk zakupu kredytów"""
@@ -50,19 +54,12 @@ async def handle_unknown_callback(update: Update, context: ContextTypes.DEFAULT_
         keyboard = [[InlineKeyboardButton("⬅️ Powrót do menu", callback_data="menu_back_main")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        # Sprawdź, czy wiadomość ma podpis (caption) czy tekst
-        if hasattr(query.message, 'caption') and query.message.caption is not None:
-            # Wiadomość ma podpis (np. zdjęcie)
-            await query.edit_message_caption(
-                caption=message_text,
-                reply_markup=reply_markup
-            )
-        else:
-            # Zwykła wiadomość tekstowa
-            await query.edit_message_text(
-                text=message_text,
-                reply_markup=reply_markup
-            )
+        # Wykorzystanie centralnego systemu menu
+        await update_menu_message(
+            query,
+            message_text,
+            reply_markup
+        )
     except Exception as e:
         print(f"Błąd przy edycji wiadomości: {e}")
         # W przypadku błędu, próbujemy wysłać nową wiadomość
@@ -91,63 +88,64 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     
     # 10. Szybkie akcje
     if query.data == "quick_new_chat":
-            try:
-                # Utwórz nową konwersację
-                conversation = create_new_conversation(user_id)
-                mark_chat_initialized(context, user_id)
+        try:
+            # Utwórz nową konwersację
+            from database.supabase_client import create_new_conversation
+            conversation = create_new_conversation(user_id)
+            mark_chat_initialized(context, user_id)
+            
+            await query.answer(get_text("new_chat_created", language))
+            
+            # Zamknij menu, aby użytkownik mógł zacząć pisać
+            await query.message.delete()
+            
+            # Determine current mode and cost
+            from config import DEFAULT_MODEL, AVAILABLE_MODELS, CHAT_MODES, CREDIT_COSTS
+            
+            # Default values
+            current_mode = "no_mode"
+            model_to_use = DEFAULT_MODEL
+            credit_cost = CREDIT_COSTS["message"].get(model_to_use, 1)
+            
+            # Get user's selected mode if available
+            if 'user_data' in context.chat_data and user_id in context.chat_data['user_data']:
+                user_data = context.chat_data['user_data'][user_id]
                 
-                await query.answer(get_text("new_chat_created", language))
+                # Check for current mode
+                if 'current_mode' in user_data and user_data['current_mode'] in CHAT_MODES:
+                    current_mode = user_data['current_mode']
+                    model_to_use = CHAT_MODES[current_mode].get("model", DEFAULT_MODEL)
+                    credit_cost = CHAT_MODES[current_mode]["credit_cost"]
                 
-                # Zamknij menu, aby użytkownik mógł zacząć pisać
-                await query.message.delete()
-                
-                # Determine current mode and cost
-                from config import DEFAULT_MODEL, AVAILABLE_MODELS, CHAT_MODES, CREDIT_COSTS
-                
-                # Default values
-                current_mode = "no_mode"
-                model_to_use = DEFAULT_MODEL
-                credit_cost = CREDIT_COSTS["message"].get(model_to_use, 1)
-                
-                # Get user's selected mode if available
-                if 'user_data' in context.chat_data and user_id in context.chat_data['user_data']:
-                    user_data = context.chat_data['user_data'][user_id]
-                    
-                    # Check for current mode
-                    if 'current_mode' in user_data and user_data['current_mode'] in CHAT_MODES:
-                        current_mode = user_data['current_mode']
-                        model_to_use = CHAT_MODES[current_mode].get("model", DEFAULT_MODEL)
-                        credit_cost = CHAT_MODES[current_mode]["credit_cost"]
-                    
-                    # Check for current model (overrides mode's model)
-                    if 'current_model' in user_data and user_data['current_model'] in AVAILABLE_MODELS:
-                        model_to_use = user_data['current_model']
-                        credit_cost = CREDIT_COSTS["message"].get(model_to_use, CREDIT_COSTS["message"]["default"])
-                
-                # Get friendly model name
-                model_name = AVAILABLE_MODELS.get(model_to_use, model_to_use)
-                
-                # Create new chat message with model info
-                base_message = "✅ Utworzono nową rozmowę. Możesz zacząć pisać! "  # Ujednolicony komunikat
-                model_info = f"Używasz modelu {model_name} za {credit_cost} kredyt(ów) za wiadomość"
-                
-                # Tylko jeden przycisk - wybór modelu
-                keyboard = [
-                    [InlineKeyboardButton("🤖 Wybierz model czatu", callback_data="settings_model")]
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                
-                # Wyślij komunikat potwierdzający
-                await context.bot.send_message(
-                    chat_id=query.message.chat_id,
-                    text=base_message + model_info,
-                    reply_markup=reply_markup
-                )
-                return True
-            except Exception as e:
-                print(f"Błąd przy tworzeniu nowej rozmowy: {e}")
-                import traceback
-                traceback.print_exc()
+                # Check for current model (overrides mode's model)
+                if 'current_model' in user_data and user_data['current_model'] in AVAILABLE_MODELS:
+                    model_to_use = user_data['current_model']
+                    credit_cost = CREDIT_COSTS["message"].get(model_to_use, CREDIT_COSTS["message"]["default"])
+            
+            # Get friendly model name
+            model_name = AVAILABLE_MODELS.get(model_to_use, model_to_use)
+            
+            # Create new chat message with model info
+            base_message = "✅ Utworzono nową rozmowę. Możesz zacząć pisać! "  # Ujednolicony komunikat
+            model_info = f"Używasz modelu {model_name} za {credit_cost} kredyt(ów) za wiadomość"
+            
+            # Tylko jeden przycisk - wybór modelu
+            keyboard = [
+                [InlineKeyboardButton("🤖 Wybierz model czatu", callback_data="settings_model")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            # Wyślij komunikat potwierdzający
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=base_message + model_info,
+                reply_markup=reply_markup
+            )
+            return True
+        except Exception as e:
+            print(f"Błąd przy tworzeniu nowej rozmowy: {e}")
+            import traceback
+            traceback.print_exc()
 
     # Obsługa wyboru modelu
     elif query.data == "settings_model":
@@ -187,6 +185,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         
     # Specjalna obsługa dla settings_language
     if query.data == "settings_language":
+        from config import AVAILABLE_LANGUAGES
         keyboard = []
         for lang_code, lang_name in AVAILABLE_LANGUAGES.items():
             keyboard.append([
@@ -204,34 +203,19 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         reply_markup = InlineKeyboardMarkup(keyboard)
         message_text = get_text("settings_choose_language", language, default="Wybierz język:")
         
-        # Sprawdź, czy wiadomość ma zdjęcie/podpis czy jest tekstem
-        is_caption = hasattr(query.message, 'caption') and query.message.caption is not None
-        
-        try:
-            if is_caption:
-                await query.edit_message_caption(
-                    caption=message_text, 
-                    reply_markup=reply_markup
-                )
-            else:
-                await query.edit_message_text(
-                    text=message_text, 
-                    reply_markup=reply_markup
-                )
-            return True
-        except Exception as e:
-            print(f"Błąd przy edycji menu języka: {e}")
-            # W przypadku błędu wyślij nową wiadomość
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text=message_text,
-                reply_markup=reply_markup
-            )
-            return True
+        # Wykorzystanie centralnego systemu menu
+        await update_menu_message(
+            query,
+            message_text,
+            reply_markup,
+            parse_mode=ParseMode.MARKDOWN
+        )
+        return True
 
     elif query.data == "quick_last_chat":
         try:
             # Pobierz aktywną konwersację
+            from database.supabase_client import get_active_conversation
             conversation = get_active_conversation(user_id)
             
             if conversation:
@@ -243,6 +227,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 await query.answer(get_text("no_active_chat", language, default="Brak aktywnej rozmowy"))
                 
                 # Utwórz nową konwersację
+                from database.supabase_client import create_new_conversation
                 create_new_conversation(user_id)
                 
                 # Zamknij menu
