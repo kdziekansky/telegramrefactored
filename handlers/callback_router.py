@@ -7,6 +7,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from utils.user_utils import get_user_language
 from utils.menu import update_menu, store_menu_state
+from utils.translations import get_text
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +96,7 @@ async def route_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Unknown callback
     logger.warning(f"Unhandled callback: {query.data}")
     try:
-        keyboard = [[InlineKeyboardButton("⬅️ Menu główne", callback_data="menu_back_main")]]
+        keyboard = [[InlineKeyboardButton("⬅️ " + get_text("back_to_main_menu", language, default="Powrót do menu głównego"), callback_data="menu_back_main")]]
         await update_menu(
             query,
             f"Nieznany przycisk. Spróbuj ponownie później.",
@@ -235,6 +236,7 @@ async def route_mode_selection_callback(update: Update, context: ContextTypes.DE
 async def route_quick_action_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Routes quick action callbacks"""
     query = update.callback_query
+    language = get_user_language(context, user_id)
     
     if query.data == "quick_new_chat":
         # Handle new chat creation
@@ -246,7 +248,7 @@ async def route_quick_action_callback(update: Update, context: ContextTypes.DEFA
             conversation = create_new_conversation(query.from_user.id)
             mark_chat_initialized(context, query.from_user.id)
             
-            await query.answer(get_text("new_chat_created", get_user_language(context, query.from_user.id)))
+            await query.answer(get_text("new_chat_created", language))
             
             # Close the menu
             await query.message.delete()
@@ -305,7 +307,6 @@ async def route_quick_action_callback(update: Update, context: ContextTypes.DEFA
         try:
             # Get active conversation
             from database.supabase_client import get_active_conversation
-            language = get_user_language(context, query.from_user.id)
             
             conversation = get_active_conversation(query.from_user.id)
             
@@ -397,8 +398,16 @@ async def route_document_callback(update: Update, context: ContextTypes.DEFAULT_
             return False
     elif query.data in ["analyze_document", "translate_document"]:
         try:
-            from handlers.callback_handler import handle_callback_query
-            return await handle_callback_query(update, context)
+            from handlers.file_handler import handle_document
+            # Create a fake update with document information
+            if 'user_data' in context.chat_data and query.from_user.id in context.chat_data['user_data']:
+                user_data = context.chat_data['user_data'][query.from_user.id]
+                if 'last_document_id' in user_data:
+                    # TODO: Implement proper document analysis based on callback
+                    # For now, just show a message
+                    await query.message.reply_text("Funkcja analizy dokumentu w trakcie implementacji.")
+                    return True
+            return False
         except Exception as e:
             logger.error(f"Error in document analysis callback handling: {e}")
             return False
@@ -418,8 +427,16 @@ async def route_photo_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             return False
     elif query.data in ["analyze_photo", "translate_photo"]:
         try:
-            from handlers.callback_handler import handle_callback_query
-            return await handle_callback_query(update, context)
+            from handlers.file_handler import handle_photo
+            # Create a fake update with photo information
+            if 'user_data' in context.chat_data and query.from_user.id in context.chat_data['user_data']:
+                user_data = context.chat_data['user_data'][query.from_user.id]
+                if 'last_photo_id' in user_data:
+                    # TODO: Implement proper photo analysis based on callback
+                    # For now, just show a message
+                    await query.message.reply_text("Funkcja analizy zdjęcia w trakcie implementacji.")
+                    return True
+            return False
         except Exception as e:
             logger.error(f"Error in photo analysis callback handling: {e}")
             return False
@@ -447,12 +464,11 @@ async def route_history_callback(update: Update, context: ContextTypes.DEFAULT_T
 async def route_settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Routes settings-related callbacks"""
     query = update.callback_query
+    user_id = query.from_user.id
+    language = get_user_language(context, user_id)
     
     if query.data == "settings_name":
         # Implement name settings here
-        user_id = query.from_user.id
-        language = get_user_language(context, user_id)
-        
         message_text = get_text("settings_change_name", language, default="Aby zmienić swoją nazwę, użyj komendy /setname [twoja_nazwa].\n\nNa przykład: /setname Jan Kowalski")
         keyboard = [[InlineKeyboardButton("⬅️ Powrót", callback_data="menu_section_settings")]]
         reply_markup = InlineKeyboardMarkup(keyboard)

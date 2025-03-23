@@ -3,7 +3,8 @@
 Unified module for menu management and UI handling
 """
 import logging
-from telegram import InlineKeyboardMarkup, ParseMode
+from telegram import InlineKeyboardMarkup
+from telegram.constants import ParseMode
 from utils.translations import get_text
 from utils.user_utils import get_user_language
 

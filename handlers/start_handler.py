@@ -171,26 +171,19 @@ async def handle_language_selection(update: Update, context: ContextTypes.DEFAUL
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        # Użyj centralnej implementacji update_menu
-        from utils.menu_utils import update_menu
+        # Użyj centralnej implementacji update_menu z utils.menu
+        from utils.menu import update_menu
         try:
-            # Bezpośrednio aktualizujemy wiadomość, aby uniknąć problemów z update_menu
-            if hasattr(query.message, 'caption'):
-                await query.edit_message_caption(
-                    caption=welcome_text,
-                    reply_markup=reply_markup
-                )
-            else:
-                await query.edit_message_text(
-                    text=welcome_text,
-                    reply_markup=reply_markup
-                )
+            await update_menu(
+                query, 
+                welcome_text,
+                reply_markup,
+                parse_mode=ParseMode.MARKDOWN
+            )
                 
-            # Zapisz stan menu poprawnie - używamy bezpośrednio menu_state
-            from utils.menu_utils import menu_state
-            menu_state.set_state(user_id, 'main')
-            menu_state.set_message_id(user_id, query.message.message_id)
-            menu_state.save_to_context(context, user_id)
+            # Zapisz stan menu poprawnie
+            from utils.menu import store_menu_state
+            store_menu_state(context, user_id, 'main', query.message.message_id)
             
             print(f"Menu główne wyświetlone poprawnie dla użytkownika {user_id}")
         except Exception as e:
@@ -204,10 +197,8 @@ async def handle_language_selection(update: Update, context: ContextTypes.DEFAUL
                 )
                 
                 # Zapisz stan menu
-                from utils.menu_utils import menu_state
-                menu_state.set_state(user_id, 'main')
-                menu_state.set_message_id(user_id, message.message_id)
-                menu_state.save_to_context(context, user_id)
+                from utils.menu import store_menu_state
+                store_menu_state(context, user_id, 'main', message.message_id)
                 
                 print(f"Wysłano nową wiadomość menu dla użytkownika {user_id}")
             except Exception as e2:
