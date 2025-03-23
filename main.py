@@ -43,6 +43,7 @@ from handlers.translate_handler import translate_command
 from handlers.payment_handler import payment_command, subscription_command, handle_payment_callback, transactions_command
 from handlers.admin_handler import get_user_info
 from handlers.admin_package_handler import add_package, list_packages, toggle_package, add_default_packages
+from handlers.menu_handler import models_command
 
 # Import nowych handlerów
 from handlers.onboarding_handler import onboarding_command, handle_onboarding_callback, get_onboarding_image_url
@@ -88,6 +89,7 @@ application.add_handler(CommandHandler("activate", activate_license))
 application.add_handler(CommandHandler("status", check_subscription))
 application.add_handler(CommandHandler("setname", set_user_name))
 
+
 # Handlery dla administratorów
 application.add_handler(CommandHandler("addpackage", add_package))
 application.add_handler(CommandHandler("listpackages", list_packages))
@@ -102,7 +104,6 @@ application.add_handler(CallbackQueryHandler(handle_buy_credits, pattern="^menu_
 application.add_handler(CallbackQueryHandler(handle_language_selection, pattern="^start_lang_"))
 application.add_handler(CallbackQueryHandler(handle_menu_callback, pattern="^menu_"))
 application.add_handler(CallbackQueryHandler(handle_theme_callback, pattern="^(theme_|new_theme|no_theme)"))
-application.add_handler(CallbackQueryHandler(handle_mode_callback, pattern="^mode_"))
 application.add_handler(CallbackQueryHandler(handle_credit_callback, pattern="^(credits_|menu_credits_|buy_)"))
 application.add_handler(CallbackQueryHandler(handle_payment_callback, pattern="^(payment_|buy_package_)"))
 application.add_handler(CallbackQueryHandler(handle_onboarding_callback, pattern="^onboarding_"))
@@ -111,12 +112,11 @@ application.add_handler(CallbackQueryHandler(handle_document_confirmation, patte
 application.add_handler(CallbackQueryHandler(handle_photo_confirmation, pattern="^confirm_photo_"))
 application.add_handler(CallbackQueryHandler(handle_message_confirmation, pattern="^confirm_message$|^cancel_operation$"))
 application.add_handler(CallbackQueryHandler(handle_callback_query))
+application.add_handler(CommandHandler("models", models_command))
+application.add_handler(CallbackQueryHandler(handle_mode_selection, pattern="^mode_"))
 
 # Handler wiadomości tekstowych
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
-
-application.add_handler(CallbackQueryHandler(handle_mode_selection, pattern="^mode_"))
-
 
 # Handler dokumentów i zdjęć
 application.add_handler(MessageHandler(filters.Document.ALL, handle_document))

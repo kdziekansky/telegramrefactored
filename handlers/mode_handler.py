@@ -86,34 +86,78 @@ async def show_modes(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup
         )
 
-async def handle_mode_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Obsługuje wybór trybu czatu z ulepszoną wizualizacją"""
-    query = update.callback_query
-    user_id = query.from_user.id
+async def models_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Wyświetla dostępne modele AI i pozwala użytkownikowi wybrać jeden z nich
+    Użycie: /models
+    """
+    user_id = update.effective_user.id
     language = get_user_language(context, user_id)
     
-    # Wyodrębnij mode_id z callback_data
-    mode_id = query.data.replace("mode_", "")
+    message_text = f"*{get_text('main_menu', language, default='Menu główne')} > {get_text('settings_choose_model', language, default='Wybór modelu')}*\n\n"
+    message_text += get_text("settings_choose_model", language, default="Wybierz model AI, którego chcesz używać:")
+    
+    # Stwórz przyciski dla dostępnych modeli
+    keyboard = []
+    for model_id, model_name in AVAILABLE_MODELS.items():
+        # Dodaj informację o koszcie kredytów
+        credit_cost = CREDIT_COSTS["message"].get(model_id, CREDIT_COSTS["message"]["default"])
+        keyboard.append([
+            InlineKeyboardButton(
+                text=f"{model_name} ({credit_cost} {get_text('credits_per_message', language, default='kredytów/wiadomość')})", 
+                callback_data=f"model_{model_id}"
+            )
+        ])
+    
+    # Dodaj przycisk powrotu
+    keyboard.append([
+        InlineKeyboardButton(get_text("back", language, default="Powrót"), callback_data="menu_section_settings")
+    ])
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        message_text,
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+async def handle_mode_selection(update: Update, context: ContextTypes.DEFAULT_TYPE, mode_id=None):
+    """Obsługuje wybór trybu czatu z ulepszoną wizualizacją"""
+    if isinstance(update, Update) and update.callback_query:
+        query = update.callback_query
+        user_id = query.from_user.id
+        
+        # Jeśli mode_id nie został podany, wyodrębnij z callback_data
+        if not mode_id and query.data.startswith("mode_"):
+            mode_id = query.data.replace("mode_", "")
+    else:
+        # Obsługa przypadku gdy funkcja jest wywoływana bezpośrednio
+        user_id = update.effective_user.id
+        # mode_id musi być podany jako parametr w tym przypadku
+    
+    language = get_user_language(context, user_id)
     
     print(f"Obsługiwanie wyboru trybu: {mode_id}")
     
     # Sprawdź, czy tryb istnieje
     if mode_id not in CHAT_MODES:
-        try:
-            await query.answer(get_text("mode_not_available", language, default="Wybrany tryb nie jest dostępny."))
-            
-            if hasattr(query.message, 'caption'):
-                await query.edit_message_caption(
-                    caption=get_text("mode_not_available", language, default="Wybrany tryb nie jest dostępny."),
-                    parse_mode=ParseMode.MARKDOWN
-                )
-            else:
-                await query.edit_message_text(
-                    text=get_text("mode_not_available", language, default="Wybrany tryb nie jest dostępny."),
-                    parse_mode=ParseMode.MARKDOWN
-                )
-        except Exception as e:
-            print(f"Błąd przy edycji wiadomości: {e}")
+        if isinstance(update, Update) and update.callback_query:
+            try:
+                await query.answer(get_text("mode_not_available", language, default="Wybrany tryb nie jest dostępny."))
+                
+                if hasattr(query.message, 'caption'):
+                    await query.edit_message_caption(
+                        caption=get_text("mode_not_available", language, default="Wybrany tryb nie jest dostępny."),
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+                else:
+                    await query.edit_message_text(
+                        text=get_text("mode_not_available", language, default="Wybrany tryb nie jest dostępny."),
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+            except Exception as e:
+                print(f"Błąd przy edycji wiadomości: {e}")
         return
     
     # Zapisz wybrany tryb w kontekście użytkownika
@@ -146,85 +190,83 @@ async def handle_mode_selection(update: Update, context: ContextTypes.DEFAULT_TY
     
     try:
         print(f"Przygotowywanie wiadomości dla trybu {mode_id}")
-        # Use enhanced formatting with visual card
-        from utils.message_formatter_enhanced import format_mode_selection
-        message_text = format_mode_selection(mode_name, short_description, credit_cost, model_name)
+        # Przygotuj wiadomość potwierdzającą wybór
+        message_text = f"*Wybrany tryb: {mode_name}*\n\n"
+        message_text += f"*Opis:* {short_description}\n\n"
+        message_text += f"*Model:* {model_name}\n"
+        message_text += f"*Koszt:* {credit_cost} kredytów/wiadomość\n\n"
+        message_text += "Możesz teraz rozpocząć rozmowę. Powodzenia!"
         
-        # Add tip about mode usage if appropriate
-        from utils.tips import should_show_tip, get_random_tip
-        if should_show_tip(user_id, context):
-            tip = get_random_tip('general')
-            message_text += f"\n\n💡 *Porada:* {tip}"
-        
-        # Dodaj przyciski powrotu do menu trybów
+        # Dodaj przyciski
         keyboard = [
-            [InlineKeyboardButton("✏️ " + get_text("start_chat", language, default="Rozpocznij rozmowę"), callback_data="quick_new_chat")],
-            [InlineKeyboardButton("⬅️ " + get_text("back", language), callback_data="menu_section_chat_modes")]
+            [InlineKeyboardButton("✏️ Rozpocznij rozmowę", callback_data="quick_new_chat")],
+            [InlineKeyboardButton("⬅️ Powrót", callback_data="menu_section_chat_modes")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        print(f"Przygotowano przyciski dla trybu {mode_id}, aktualizacja wiadomości...")
-        
-        # Improved check for caption - make sure the message has a caption attribute WITH content
-        if hasattr(query.message, 'caption') and query.message.caption is not None:
-            try:
-                await query.edit_message_caption(
-                    caption=message_text,
-                    parse_mode=ParseMode.MARKDOWN,
-                    reply_markup=reply_markup
-                )
-                print(f"Zaktualizowano caption dla trybu {mode_id}")
-            except Exception as e:
-                print(f"Błąd przy edycji caption: {e}")
-                # Fallback to editing text instead
-                await query.edit_message_text(
-                    text=message_text,
-                    parse_mode=ParseMode.MARKDOWN,
-                    reply_markup=reply_markup
-                )
-                print(f"Fallback: Zaktualizowano text dla trybu {mode_id}")
+        if isinstance(update, Update) and update.callback_query:
+            # Aktualizuj wiadomość, jeśli mamy callback_query
+            if hasattr(query.message, 'caption') and query.message.caption is not None:
+                try:
+                    await query.edit_message_caption(
+                        caption=message_text,
+                        parse_mode=ParseMode.MARKDOWN,
+                        reply_markup=reply_markup
+                    )
+                except Exception as e:
+                    print(f"Błąd przy edycji caption: {e}")
+                    # Fallback do wysłania nowej wiadomości
+                    await context.bot.send_message(
+                        chat_id=query.message.chat_id,
+                        text=message_text,
+                        parse_mode=ParseMode.MARKDOWN,
+                        reply_markup=reply_markup
+                    )
+            else:
+                try:
+                    await query.edit_message_text(
+                        text=message_text,
+                        parse_mode=ParseMode.MARKDOWN,
+                        reply_markup=reply_markup
+                    )
+                except Exception as e:
+                    print(f"Błąd przy edycji text: {e}")
+                    # Fallback do wysłania nowej wiadomości
+                    await context.bot.send_message(
+                        chat_id=query.message.chat_id,
+                        text=message_text,
+                        parse_mode=ParseMode.MARKDOWN,
+                        reply_markup=reply_markup
+                    )
         else:
-            # Use edit_message_text for regular text messages
-            await query.edit_message_text(
-                text=message_text,
+            # Wyślij nową wiadomość, jeśli nie mamy callback_query
+            await update.message.reply_text(
+                message_text,
                 parse_mode=ParseMode.MARKDOWN,
                 reply_markup=reply_markup
             )
-            print(f"Zaktualizowano text dla trybu {mode_id}")
-            
-        await query.answer(get_text("mode_selected", language, default="Tryb wybrany pomyślnie"))
-    except Exception as e:
-        print(f"Błąd przy edycji wiadomości dla trybu {mode_id}: {e}")
-        import traceback
-        traceback.print_exc()
-        try:
-            # Próba wysłania bez formatowania Markdown
-            plain_message = f"Wybrano tryb: {mode_name}\n\n{short_description}\n\nKoszt: {credit_cost} kredytów"
-            
-            # Always use edit_message_text here as a fallback
-            await query.edit_message_text(
-                text=plain_message,
-                reply_markup=reply_markup
-            )
-            print(f"Zaktualizowano text (bez Markdown) dla trybu {mode_id}")
-        except Exception as e2:
-            print(f"Drugi błąd przy edycji wiadomości dla trybu {mode_id}: {e2}")
-            traceback.print_exc()
         
-    # Utwórz nową konwersację dla wybranego trybu
-    try:
-        from database.supabase_client import create_new_conversation
-        conversation = create_new_conversation(user_id)
-        print(f"Utworzono nową konwersację dla użytkownika {user_id} w trybie {mode_id}")
-        
-        # Mark chat as initialized
+        # Utwórz nową konwersację dla wybranego trybu
         try:
-            from utils.user_utils import mark_chat_initialized
-            mark_chat_initialized(context, user_id)
-            print(f"Oznaczono czat jako zainicjowany dla użytkownika {user_id}")
+            from database.supabase_client import create_new_conversation
+            conversation = create_new_conversation(user_id)
+            print(f"Utworzono nową konwersację dla użytkownika {user_id} w trybie {mode_id}")
+            
+            # Mark chat as initialized
+            try:
+                from utils.user_utils import mark_chat_initialized
+                mark_chat_initialized(context, user_id)
+                print(f"Oznaczono czat jako zainicjowany dla użytkownika {user_id}")
+            except Exception as e:
+                print(f"Błąd przy oznaczaniu czatu jako zainicjowany: {e}")
+                import traceback
+                traceback.print_exc()
         except Exception as e:
-            print(f"Błąd przy oznaczaniu czatu jako zainicjowany: {e}")
+            print(f"Błąd przy tworzeniu nowej konwersacji: {e}")
+            import traceback
             traceback.print_exc()
+            
     except Exception as e:
-        print(f"Błąd przy tworzeniu nowej konwersacji: {e}")
+        print(f"Błąd w handle_mode_selection: {e}")
+        import traceback
         traceback.print_exc()
