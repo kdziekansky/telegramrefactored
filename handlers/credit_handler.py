@@ -95,11 +95,6 @@ async def buy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     language = get_user_language(context, user_id)
     
-    # Check if stars option is specified
-    if context.args and len(context.args) > 0 and context.args[0].lower() == "stars":
-        await show_stars_purchase_options(update, context)
-        return
-    
     # Create styled header for payment options
     message = create_header("Zakup kredytów", "credits")
     
@@ -121,15 +116,11 @@ async def buy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "▪️ Priorytetowa obsługa\n"
         "▪️ Dodatkowe funkcje premium")
     
-    # Create enhanced buttons for payment options
+    # Create enhanced buttons for payment options - usunięto opcję gwiazdek Telegram
     keyboard = [
         [
             InlineKeyboardButton("💳 " + get_text("credit_card", language, default="Karta płatnicza"), callback_data="payment_method_stripe"),
             InlineKeyboardButton("🔄 " + get_text("subscription", language, default="Subskrypcja"), callback_data="payment_method_stripe_subscription")
-        ],
-        [
-            InlineKeyboardButton("⭐ " + get_text("telegram_stars", language, default="Gwiazdki Telegram"), callback_data="show_stars_options"),
-            InlineKeyboardButton("🛒 " + get_text("other_methods", language, default="Inne metody"), callback_data="payment_command")
         ],
         [
             InlineKeyboardButton("⬅️ " + get_text("back", language, default="Powrót"), callback_data="menu_back_main")
@@ -374,68 +365,6 @@ async def handle_credit_callback(update: Update, context: ContextTypes.DEFAULT_T
             print(f"Error updating keyboard: {e}")
         
         return True
-
-    # Handle Telegram stars purchase options
-    if query.data == "show_stars_options":
-        # Get star exchange rates
-        conversion_rates = get_stars_conversion_rate()
-        
-        # Create keyboard
-        keyboard = []
-        for stars, credits in conversion_rates.items():
-            keyboard.append([
-                InlineKeyboardButton(
-                    f"⭐ {stars} {get_text('stars', language, default='gwiazdek')} = {credits} {get_text('credits', language)}", 
-                    callback_data=f"buy_stars_{stars}"
-                )
-            ])
-        
-        # Add back button - zmienione, żeby wracało do nowego interfejsu
-        keyboard.append([
-            InlineKeyboardButton(get_text("back", language), callback_data="menu_credits_buy")
-        ])
-        
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await query.edit_message_text(
-            get_text("stars_purchase_info", language),
-            parse_mode=ParseMode.MARKDOWN,
-            reply_markup=reply_markup
-        )
-        return True
-    
-    # Handle stars purchase
-    if query.data.startswith("buy_stars_"):
-        stars_amount = int(query.data.split("_")[2])
-        
-        # Get star exchange rates
-        conversion_rates = get_stars_conversion_rate()
-        
-        # Check if this stars amount is supported
-        if stars_amount not in conversion_rates:
-            await query.edit_message_text(
-                get_text("stars_invalid_amount", language, default="Wystąpił błąd. Nieprawidłowa liczba gwiazdek."),
-                parse_mode=ParseMode.MARKDOWN
-            )
-            return True
-        
-        credits_amount = conversion_rates[stars_amount]
-        
-        # Add credits to user's account
-        success = add_stars_payment_option(user_id, stars_amount, credits_amount)
-        
-        if success:
-            current_credits = get_user_credits(user_id)
-            await query.edit_message_text(
-                get_text("stars_purchase_success", language, default=f"✅ *Zakup zakończony sukcesem!*\n\nWymieniono *{stars_amount}* gwiazdek na *{credits_amount}* kredytów\n\nAktualny stan kredytów: *{current_credits}*\n\nDziękujemy za zakup! 🎉"),
-                parse_mode=ParseMode.MARKDOWN
-            )
-        else:
-            await query.edit_message_text(
-                get_text("purchase_error", language, default="Wystąpił błąd podczas realizacji płatności. Spróbuj ponownie później."),
-                parse_mode=ParseMode.MARKDOWN
-            )
-        return True
     
     return False  # If callback not handled
 
@@ -640,36 +569,3 @@ async def credit_analytics_command(update: Update, context: ContextTypes.DEFAULT
             photo=breakdown_chart,
             caption=f"📊 {get_text('usage_breakdown_chart', language, default=f'Rozkład wykorzystania kredytów z ostatnich {days} dni')}"
         )
-
-async def show_stars_purchase_options(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Show options to purchase credits using Telegram stars
-    """
-    user_id = update.effective_user.id
-    language = get_user_language(context, user_id)
-    
-    # Get conversion rate
-    conversion_rates = get_stars_conversion_rate()
-    
-    # Create buttons for different star purchase options
-    keyboard = []
-    for stars, credits in conversion_rates.items():
-        keyboard.append([
-            InlineKeyboardButton(
-                f"⭐ {stars} {get_text('stars', language, default='gwiazdek')} = {credits} {get_text('credits', language)}", 
-                callback_data=f"buy_stars_{stars}"
-            )
-        ])
-    
-    # Add return button
-    keyboard.append([
-        InlineKeyboardButton(get_text("back_to_purchase_options", language, default="🔙 Powrót do opcji zakupu"), callback_data="buy_credits")
-    ])
-    
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text(
-        get_text("stars_purchase_info", language, default="🌟 *Zakup kredytów za Telegram Stars* 🌟\n\nWybierz jedną z opcji poniżej, aby wymienić gwiazdki Telegram na kredyty.\nIm więcej gwiazdek wymienisz jednorazowo, tym lepszy bonus otrzymasz!\n\n⚠️ *Uwaga:* Aby dokonać zakupu gwiazdkami, wymagane jest konto Telegram Premium."),
-        parse_mode=ParseMode.MARKDOWN,
-        reply_markup=reply_markup
-    )

@@ -36,7 +36,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"Błąd formatowania Markdown w help_command: {e}")
         try:
             await update.message.reply_text(
-                help_text,
+                help_text.replace("*", "").replace("_", "").replace("`", ""),
                 reply_markup=reply_markup
             )
         except Exception as e2:

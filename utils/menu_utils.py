@@ -6,10 +6,6 @@ from utils.translations import get_text
 
 logger = logging.getLogger(__name__)
 
-# Dodatkowo warto poprawić funkcję update_menu w pliku utils/menu_utils.py
-# Ta funkcja jest często używana w wielu miejscach, więc jej poprawa rozwiąże wiele problemów jednocześnie.
-# Zastąp całą funkcję update_menu poniższym kodem:
-
 async def update_menu(query, text, keyboard, parse_mode=None):
     """
     Ulepszona funkcja do aktualizacji wiadomości menu
@@ -55,7 +51,7 @@ async def update_menu(query, text, keyboard, parse_mode=None):
         if parse_mode:
             try:
                 # Usuń znaczniki formatowania
-                text = text.replace("*", "").replace("_", "").replace("`", "")
+                text = text.replace("*", "").replace("_", "").replace("`", "").replace("[", "").replace("]", "")
                 
                 if is_caption:
                     await query.edit_message_caption(
@@ -69,23 +65,20 @@ async def update_menu(query, text, keyboard, parse_mode=None):
             except Exception as e2:
                 logger.error(f"Second menu update error: {e2}")
         
-        # Ostatnia szansa - usuń starą wiadomość i wyślij nową
+        # Ostatnia szansa - wyślij nową wiadomość
         try:
             # Zapisz ID czatu, bo będziemy usuwać wiadomość
             chat_id = query.message.chat_id
             
-            # Usuń starą wiadomość
-            await query.message.delete()
-            
             # Wyślij nową wiadomość
             await query.bot.send_message(
                 chat_id=chat_id,
-                text=text,
+                text=text.replace("*", "").replace("_", "").replace("`", "").replace("[", "").replace("]", ""),
                 reply_markup=keyboard
             )
             return True
         except Exception as e3:
-            logger.error(f"Cannot send start message: {e3}")
+            logger.error(f"Cannot send new message: {e3}")
             return False
 
 def safe_markdown(text):

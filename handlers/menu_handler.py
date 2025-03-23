@@ -439,13 +439,13 @@ async def handle_payment_callbacks(update, context):
     
     return False  # Nie obsłużono callbacku
 
-async def handle_history_callbacks(update, context):
-    """Obsługuje callbacki związane z historią"""
+async def handle_history_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Obsługuje callbacki związane z historią
+    """
     query = update.callback_query
     user_id = query.from_user.id
     language = get_user_language(context, user_id)
-    
-    # Już zostało wywołane query.answer() w handle_menu_callback
     
     print(f"History callback: {query.data}")  # Debugging
     
@@ -821,7 +821,6 @@ async def handle_help_section(update, context, navigation_path=""):
         "▪️ /image - Generuj obraz\n"
         "▪️ /help - Wyświetl pomoc\n"
         "▪️ /status - Sprawdź status\n"
-        "▪️ /tutorial - Interaktywny tutorial"
     )
     
     message_text += f"\n\n{section_divider('Skróty Komend')}\n{command_shortcuts}"
@@ -832,13 +831,11 @@ async def handle_help_section(update, context, navigation_path=""):
         message_text += f"\n\n{section_divider('Porada Dnia')}\n💡 *Porada:* {tip}"
     
     keyboard = [
-        # Pasek szybkiego dostępu
         [
             InlineKeyboardButton("🆕 " + get_text("new_chat", language, default="Nowa rozmowa"), callback_data="quick_new_chat"),
             InlineKeyboardButton("💬 " + get_text("last_chat", language, default="Ostatnia rozmowa"), callback_data="quick_last_chat"),
             InlineKeyboardButton("💸 " + get_text("buy_credits_btn", language, default="Kup kredyty"), callback_data="quick_buy_credits")
         ],
-        [InlineKeyboardButton("📚 " + get_text("tutorial", language, default="Interaktywny tutorial"), callback_data="start_tutorial")],
         [InlineKeyboardButton("⬅️ " + get_text("back", language), callback_data="menu_back_main")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -889,8 +886,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # W przypadku błędu, spróbuj wysłać bez formatowania
         print(f"Błąd formatowania Markdown w help_command: {e}")
         try:
+            # Usuń wszystkie znaki Markdown
+            clean_text = help_text.replace("*", "").replace("_", "").replace("`", "").replace("[", "").replace("]", "")
             await update.message.reply_text(
-                help_text,
+                clean_text,
                 reply_markup=reply_markup
             )
         except Exception as e2:
@@ -1946,7 +1945,7 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     # Obsługa ustawień
     elif query.data.startswith("settings_"):
         return await handle_settings_callbacks(update, context)
-    
+
     # Obsługa callbacków związanych z trybami
     elif query.data.startswith("mode_"):
         from handlers.mode_handler import handle_mode_selection
@@ -2144,6 +2143,77 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         except Exception as e:
             print(f"Błąd przy obsłudze callbacku dokumentu: {e}")
     
+    # 1. Naprawiony callback dla przycisku "Back" w menu płatności:
+    elif query.data == "payment_back_to_credits":
+        # Przekieruj do menu kredytów
+        nav_path = get_text("main_menu", language, default="Menu główne") + " > " + get_text("menu_credits", language)
+        return await handle_credits_section(update, context, nav_path)
+
+    # 2. Obsługa callback settings_model - naprawia problem z wysyłaniem nowej wiadomości:
+    elif query.data == "settings_model":
+        try:
+            # Wyślij nową wiadomość z wyborem modelu
+            message_text = "Wybierz model AI, którego chcesz używać:"
+            
+            # Tworzymy klawiaturę z dostępnymi modelami
+            keyboard = []
+            from config import AVAILABLE_MODELS, CREDIT_COSTS
+            
+            for model_id, model_name in AVAILABLE_MODELS.items():
+                # Dodaj informację o koszcie kredytów
+                credit_cost = CREDIT_COSTS["message"].get(model_id, CREDIT_COSTS["message"]["default"])
+                keyboard.append([
+                    InlineKeyboardButton(
+                        text=f"{model_name} ({credit_cost} kredytów/wiadomość)", 
+                        callback_data=f"model_{model_id}"
+                    )
+                ])
+            
+            # Dodaj przycisk powrotu
+            keyboard.append([
+                InlineKeyboardButton("⬅️ Powrót", callback_data="menu_section_settings")
+            ])
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            # Edytuj istniejącą wiadomość zamiast wysyłania nowej
+            if hasattr(query.message, 'caption'):
+                await query.edit_message_caption(
+                    caption=message_text,
+                    reply_markup=reply_markup
+                )
+            else:
+                await query.edit_message_text(
+                    text=message_text,
+                    reply_markup=reply_markup
+                )
+            return True
+        except Exception as e:
+            print(f"Błąd przy obsłudze wyboru modelu: {e}")
+            return False
+
+    # 3. Obsługa callback settings_name:
+    elif query.data == "settings_name":
+        try:
+            message_text = "Aby zmienić swoją nazwę, użyj komendy /setname [twoja_nazwa].\n\nNa przykład: /setname Jan Kowalski"
+            keyboard = [[InlineKeyboardButton("⬅️ Powrót", callback_data="menu_section_settings")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            if hasattr(query.message, 'caption'):
+                await query.edit_message_caption(
+                    caption=message_text,
+                    reply_markup=reply_markup
+                )
+            else:
+                await query.edit_message_text(
+                    text=message_text,
+                    reply_markup=reply_markup
+                )
+            return True
+        except Exception as e:
+            print(f"Błąd przy obsłudze ustawień nazwy: {e}")
+            return False
+
     # Jeśli dotarliśmy tutaj, oznacza to, że callback nie został obsłużony
     print(f"Nieobsłużony callback: {query.data}")
     try:

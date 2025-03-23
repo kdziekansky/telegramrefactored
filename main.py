@@ -34,7 +34,6 @@ from handlers.menu_handler import handle_menu_callback, set_user_name
 from handlers.subscription_handler import activate_license, check_subscription
 from handlers.mode_handler import show_modes, handle_mode_selection
 from handlers.export_handler import export_conversation
-from handlers.theme_handler import theme_command, notheme_command, handle_theme_callback
 from handlers.credit_handler import credits_command, buy_command, handle_credit_callback, credit_stats_command, credit_analytics_command
 from handlers.code_handler import code_command, admin_generate_code
 from handlers.image_handler import generate_image
@@ -57,14 +56,15 @@ from handlers.basic_commands import restart_command, check_status, new_chat
 from handlers.message_handler import message_handler
 from handlers.file_handler import handle_document, handle_photo
 
-# Inicjalizacja aplikacji
-application = Application.builder().token(TELEGRAM_TOKEN).build()
-
-
 # Wrapper function for mode selection
 async def handle_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Przekazuje wywołanie bezpośrednio do funkcji handle_mode_selection"""
-    await handle_mode_selection(update, context)
+    query = update.callback_query
+    mode_id = query.data[5:]  # Extract mode_id from "mode_XXX"
+    await handle_mode_selection(update, context, mode_id)
+
+# Inicjalizacja aplikacji
+application = Application.builder().token(TELEGRAM_TOKEN).build()
 
 # Rejestracja handlerów komend
 application.add_handler(CommandHandler("start", start_command))
@@ -78,8 +78,6 @@ application.add_handler(CommandHandler("export", export_conversation))
 application.add_handler(CommandHandler("language", language_command))
 application.add_handler(CommandHandler("onboarding", onboarding_command))
 application.add_handler(CommandHandler("translate", translate_command))
-application.add_handler(CommandHandler("theme", theme_command))
-application.add_handler(CommandHandler("notheme", notheme_command))
 application.add_handler(CommandHandler("credits", credits_command))
 application.add_handler(CommandHandler("buy", buy_command))
 application.add_handler(CommandHandler("creditstats", credit_stats_command))
@@ -104,7 +102,6 @@ application.add_handler(CallbackQueryHandler(handle_buy_credits, pattern="^Kup$"
 application.add_handler(CallbackQueryHandler(handle_buy_credits, pattern="^menu_credits_buy$"))
 application.add_handler(CallbackQueryHandler(handle_language_selection, pattern="^start_lang_"))
 application.add_handler(CallbackQueryHandler(handle_menu_callback, pattern="^menu_"))
-application.add_handler(CallbackQueryHandler(handle_theme_callback, pattern="^(theme_|new_theme|no_theme)"))
 application.add_handler(CallbackQueryHandler(handle_credit_callback, pattern="^(credits_|menu_credits_|buy_)"))
 application.add_handler(CallbackQueryHandler(handle_payment_callback, pattern="^(payment_|buy_package_)"))
 application.add_handler(CallbackQueryHandler(handle_onboarding_callback, pattern="^onboarding_"))
@@ -114,7 +111,7 @@ application.add_handler(CallbackQueryHandler(handle_photo_confirmation, pattern=
 application.add_handler(CallbackQueryHandler(handle_message_confirmation, pattern="^confirm_message$|^cancel_operation$"))
 application.add_handler(CallbackQueryHandler(handle_callback_query))
 application.add_handler(CommandHandler("models", models_command))
-application.add_handler(CallbackQueryHandler(handle_mode_selection, pattern="^mode_"))
+application.add_handler(CallbackQueryHandler(handle_mode_callback, pattern="^mode_"))
 application.add_handler(CallbackQueryHandler(handle_model_selection, pattern="^settings_model$"))
 
 # Handler wiadomości tekstowych
